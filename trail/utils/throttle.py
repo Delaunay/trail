@@ -20,7 +20,7 @@ class Throttler:
             return self.fun(*args, **kwargs)
 
         else:
-            self.count = self.count % self.throttle
+            self.count %= self.throttle
             return None
 
 

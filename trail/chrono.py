@@ -14,7 +14,7 @@ class ChronoContext:
         self.start = 0
         self.sync = sync
         self.parent = parent
-        self.depth = None
+        self.depth = 0
 
         if sync is None:
             self.sync = lambda: None
@@ -35,6 +35,6 @@ class ChronoContext:
 
         self.parent.depth -= 1
         if exception_type is None:
-            self.accumulator.append(self.end - self.start)
+            self.accumulator.append(None, self.end - self.start)
         else:
             raise exception_type

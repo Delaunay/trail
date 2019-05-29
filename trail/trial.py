@@ -15,9 +15,13 @@ from trail.containers.types import float32
 from trail.chrono import ChronoContext
 
 
-def to_json(k: any):
+def to_json(k: any, short=False):
     if hasattr(k, 'to_json'):
-        return k.to_json()
+        try:
+            return k.to_json(short)
+        except TypeError as e:
+            print(type(k))
+            raise e
     return k
 
 
@@ -27,9 +31,9 @@ class Trial:
     metrics: Dict[str, any] = field(default_factory=dict)
     args: Namespace = None
 
-    def to_json(self):
+    def to_json(self, short=False):
         return {
-            'metrics': {k: to_json(v) for k, v in self.metrics.items()}
+            'metrics': {k: to_json(v, short) for k, v in self.metrics.items()}
         }
 
 

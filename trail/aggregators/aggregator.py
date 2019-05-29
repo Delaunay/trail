@@ -2,20 +2,22 @@ from trail.containers.ring import RingBuffer
 from trail.containers.types import float32
 from benchutils.statstream import StatStream
 
+from typing import Tuple
+
 
 class Aggregator:
-    def append(self, other):
+    def append(self, time: Tuple[int, int], other):
         raise NotImplementedError()
 
-    def __iadd__(self, other):
-        return self.append(other)
+    def __iadd__(self, other, time: Tuple[int, int]):
+        return self.append(other, time)
 
     @property
     def val(self):
         """ Return the last observed value """
         raise NotImplementedError()
 
-    def to_json(self):
+    def to_json(self, short=False):
         raise NotImplementedError()
 
     @staticmethod
@@ -30,7 +32,7 @@ class RingAggregator(Aggregator):
     def __init__(self, n, dtype=float32):
         self.ring = RingBuffer(n, dtype)
 
-    def append(self, other):
+    def append(self, time: Tuple[int, int], other):
         self.ring.append(other)
 
     @property
@@ -41,7 +43,7 @@ class RingAggregator(Aggregator):
     def lazy(n, dtype):
         return lambda: RingAggregator(n, dtype)
 
-    def to_json(self):
+    def to_json(self, short=False):
         return self.ring.to_list()
 
 
@@ -54,7 +56,7 @@ class StatAggregator(Aggregator):
     def __init__(self, skip_obs=10):
         self.stat = StatStream(drop_first_obs=skip_obs)
 
-    def append(self, other):
+    def append(self, time: Tuple[int, int], other):
         self.stat.update(other)
 
     @property
@@ -65,8 +67,12 @@ class StatAggregator(Aggregator):
     def lazy(skip):
         return lambda: StatAggregator(skip)
 
-    def to_json(self):
+    def to_json(self, short=False):
         return self.stat.to_dict()
+
+    @property
+    def avg(self):
+        return self.stat.avg
 
 
 class TimeSeriesAggregator(Aggregator):
@@ -75,7 +81,7 @@ class TimeSeriesAggregator(Aggregator):
     def __init__(self):
         self.time_series = []
 
-    def append(self, other):
+    def append(self, time: Tuple[int, int], other):
         self.time_series.append(other)
 
     @property
@@ -86,7 +92,9 @@ class TimeSeriesAggregator(Aggregator):
     def lazy():
         return lambda: TimeSeriesAggregator()
 
-    def to_json(self):
+    def to_json(self, short=False):
+        if short:
+            return self.time_series[-20:]
         return self.time_series
 
 
@@ -96,7 +104,7 @@ class ValueAggregator(Aggregator):
     def __init__(self):
         self.value = None
 
-    def append(self, other):
+    def append(self, time: Tuple[int, int], other):
         self.value = other
 
     @property
@@ -107,5 +115,5 @@ class ValueAggregator(Aggregator):
     def lazy():
         return lambda: ValueAggregator()
 
-    def to_json(self):
+    def to_json(self, short=False):
         return self.value
