@@ -142,10 +142,6 @@ def next_batch(batch_iter):
         return None
 
 
-# arbitrary logging w/ metric name detection
-exp.log_test(0)
-
-
 model.train()
 for epoch in range(args.epochs):
     batch_iter = iter(train_loader)
@@ -182,7 +178,5 @@ for epoch in range(args.epochs):
             exp.show_batch_eta(batch_id, args.epochs, batch_time, throttle=100)
         # ---
     exp.show_epoch_eta(epoch, args.epochs, epoch_time)
-
-exp.log_test(0)
 
 exp.report()
