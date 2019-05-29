@@ -167,7 +167,7 @@ for epoch in range(args.epochs):
                     output = model(input)
                     loss = criterion(output, target)
 
-                    exp.log_batch_loss(loss.item())
+                    exp.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
                     # compute gradient and do SGD step
                     optimizer.zero_grad()

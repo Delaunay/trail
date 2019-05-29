@@ -35,6 +35,6 @@ class ChronoContext:
 
         self.parent.depth -= 1
         if exception_type is None:
-            self.accumulator.append(None, self.end - self.start)
+            self.accumulator.append(self.end - self.start)
         else:
             raise exception_type

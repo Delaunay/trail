@@ -10,7 +10,7 @@ def to_json(k: any, short=False):
 
     if isinstance(k, dict):
         return {
-            k: to_json(v, short) for k, v in k.items()
+            str(k): to_json(v, short) for k, v in k.items()
         }
 
     return k

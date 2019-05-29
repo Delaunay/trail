@@ -75,7 +75,7 @@ class Experiment:
         self.depth = 0
         acc = ValueAggregator()
         self.parent_chrono = ChronoContext('runtime', acc, None, self)
-        self.current_trial.metrics['runtime'] = acc
+        self.current_trial.values['runtime'] = acc
         # self.attr_metrics = {}
 
         self.top_level_file = None
@@ -117,7 +117,7 @@ class Experiment:
 
     def _partial_log_metric(self, name):
         def partial(*args, **kwargs):
-            return self.log_metric(name, *args, **kwargs)
+            return self._log_value(name, *args, **kwargs)
         return partial
 
     def _attr_metric_constructor(self, *args, **kwargs):
@@ -190,32 +190,37 @@ class Experiment:
         self.finish()
         print(json.dumps(to_json(self.current_trial, short), indent=2))
 
-    def log_batch_loss(self, val: any, epoch_id: str = None, batch_id: str = None):
-        return self.log_metric('batch_loss', val, epoch_id, batch_id, ts_aggregator)
+    def log_batch_loss(self, val: any, step=None):
+        return self.log_metric('batch_loss', val, step, ts_aggregator)
 
-    def log_metric(self, name: str, val: any, epoch_id: str = None, batch_id: str = None,
-                   aggregator: Callable[[], Aggregator] = ring_aggregator):
-        """
-        :param name of the metric that is being logged
-        :param val value of the metric
-        :param epoch_id: epoch id at which the function was called
-        :param batch_id: batch_id at which the function was called
-        :param aggregator how each metric should be aggregated over
-        :return:
-        """
-        time_id = (epoch_id, batch_id)
-        agg = self.current_trial.metrics.get(name)
+    # Log a metric that is not linked to a particular step in the training process
+    def _log_value(self, key, value, aggregator: Callable[[], Aggregator] = ring_aggregator):
+        storage = self.current_trial.values
+        agg = storage.get(key)
+
         if agg is None:
             agg = aggregator()
-            self.current_trial.metrics[name] = agg
-        agg.append(time_id, val)
+            storage[key] = agg
+
+        agg.append(value)
+
+    # log a dictionary of metrics for a given step
+    def _log_metric(self, step, **kwargs):
+        self.current_trial.metrics[step].update(kwargs)
+
+    def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = ring_aggregator, **kwargs):
+        if step is None:
+            for k, v in kwargs.items():
+                self._log_value(k, v, aggregator)
+        else:
+            self._log_metric(step, **kwargs)
 
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
         """ create a chrono context to time the runtime of the code inside it"""
-        agg = self.current_trial.metrics.get(name)
+        agg = self.current_trial.values.get(name)
         if agg is None:
             agg = aggregator()
-            self.current_trial.metrics[name] = agg
+            self.current_trial.values[name] = agg
 
         return ChronoContext(name, agg, sync, self.parent_chrono)
 

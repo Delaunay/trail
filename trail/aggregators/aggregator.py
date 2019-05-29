@@ -2,15 +2,13 @@ from trail.containers.ring import RingBuffer
 from trail.containers.types import float32
 from benchutils.statstream import StatStream
 
-from typing import Tuple
-
 
 class Aggregator:
-    def append(self, time: Tuple[int, int], other):
+    def append(self, other):
         raise NotImplementedError()
 
-    def __iadd__(self, other, time: Tuple[int, int]):
-        return self.append(other, time)
+    def __iadd__(self, other):
+        return self.append(other)
 
     @property
     def val(self):
@@ -32,7 +30,7 @@ class RingAggregator(Aggregator):
     def __init__(self, n, dtype=float32):
         self.ring = RingBuffer(n, dtype)
 
-    def append(self, time: Tuple[int, int], other):
+    def append(self, other):
         self.ring.append(other)
 
     @property
@@ -56,7 +54,7 @@ class StatAggregator(Aggregator):
     def __init__(self, skip_obs=10):
         self.stat = StatStream(drop_first_obs=skip_obs)
 
-    def append(self, time: Tuple[int, int], other):
+    def append(self, other):
         self.stat.update(other)
 
     @property
@@ -81,7 +79,7 @@ class TimeSeriesAggregator(Aggregator):
     def __init__(self):
         self.time_series = []
 
-    def append(self, time: Tuple[int, int], other):
+    def append(self, other):
         self.time_series.append(other)
 
     @property
@@ -104,7 +102,7 @@ class ValueAggregator(Aggregator):
     def __init__(self):
         self.value = None
 
-    def append(self, time: Tuple[int, int], other):
+    def append(self, other):
         self.value = other
 
     @property
