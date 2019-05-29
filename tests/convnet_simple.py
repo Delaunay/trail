@@ -29,7 +29,10 @@ parser.add_argument('--opt-level', default='O0', type=str)
 parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
 
 # ----
-exp = Experiment('convnet')
+exp = Experiment(
+    experiment_name='trial_test',
+    trial_name='convnet_test'
+)
 args = exp.get_arguments(parser, show=True)
 device = exp.get_device()
 
@@ -139,6 +142,10 @@ def next_batch(batch_iter):
         return None
 
 
+# arbitrary logging w/ metric name detection
+exp.log_test(0)
+
+
 model.train()
 for epoch in range(args.epochs):
     batch_iter = iter(train_loader)
@@ -175,5 +182,7 @@ for epoch in range(args.epochs):
             exp.show_batch_eta(batch_id, args.epochs, batch_time, throttle=100)
         # ---
     exp.show_epoch_eta(epoch, args.epochs, epoch_time)
+
+exp.log_test(0)
 
 exp.report()

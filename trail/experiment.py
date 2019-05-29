@@ -1,4 +1,5 @@
 import json
+import inspect
 from dataclasses import dataclass, field
 from typing import List, Union, Callable
 import torch
@@ -19,6 +20,10 @@ from trail.aggregators.aggregator import StatAggregator
 from trail.aggregators.aggregator import ValueAggregator
 from trail.aggregators.aggregator import TimeSeriesAggregator
 
+from trail.utils.system import get_gpu_name
+from trail.serialization import to_json
+from trail.versioning import get_file_version, get_git_version
+
 
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
@@ -33,6 +38,7 @@ def get_current_trial():
 
 def get_current_logger():
     return current_logger
+
 
 @dataclass
 class ExperimentData:
@@ -49,12 +55,12 @@ class ExperimentData:
 class Experiment:
     """ An experiment is a set of trials. Trials are """
 
-    def __init__(self, name: str = None, description: str = None):
+    def __init__(self, experiment_name, trial_name: str = None, description: str = None):
         global current_trial
         global current_logger
 
-        self.exp = ExperimentData(name, description)
-        self.current_trial = Trial()
+        self.exp = ExperimentData(experiment_name, description)
+        self.current_trial = Trial(name=trial_name)
         current_trial = self.current_trial
         self.exp.trials.append(self.current_trial)
 
@@ -70,7 +76,33 @@ class Experiment:
         acc = ValueAggregator()
         self.parent_chrono = ChronoContext('runtime', acc, None, self)
         self.current_trial.metrics['runtime'] = acc
-        self.attr_metrics = {}
+        # self.attr_metrics = {}
+
+        self.top_level_file = None
+        self._system_info()
+        self._version_info()
+        self.start()
+
+    def _system_info(self):
+        self.current_trial.system_metrics['gpu'] = {
+            'name': get_gpu_name()
+        }
+
+    def _version_info(self):
+        """ inspect the call stack to find where the main is located and use the main to compute the version"""
+        # File hash             # Only works if the main.py was the only file that was modified
+        # Git Hash              # Only if inside a git repository
+        # Git Diff hash         # Only if inside a git repository
+        # Hyper Parameter Hash  # For Trials where only hyper params change
+        # Param Hash            # For experiment
+
+        call_stack = inspect.stack()
+        first_call = call_stack[-1]
+        self.top_level_file = first_call.filename
+        self.current_trial.version = get_file_version(self.top_level_file)
+
+    def _log_code(self):
+        self.current_trial = open(self.top_level_file, 'r').read()
 
     def __getattr__(self, name):
         if not name.startswith('log_'):
@@ -155,7 +187,8 @@ class Experiment:
         self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
 
     def report(self, short=True):
-        print(json.dumps(self.current_trial.to_json(short), indent=2))
+        self.finish()
+        print(json.dumps(to_json(self.current_trial, short), indent=2))
 
     def log_batch_loss(self, val: any, epoch_id: str = None, batch_id: str = None):
         return self.log_metric('batch_loss', val, epoch_id, batch_id, ts_aggregator)
@@ -193,6 +226,19 @@ class Experiment:
             return torch.device('cuda')
         return torch.device('cpu')
 
+    # -- Getter Setter
+    def set_total_epoch(self, t):
+        self.epoch_total = t
+
+    def set_epoch(self, t):
+        self.epoch_id = t
+
+    def set_batch_count(self, b):
+        self.batch_total = b
+
+    def set_batch_id(self, b):
+        self.batch_id = b
+
 
 def default_epoch_eta_print(epoch_id: int, epoch_total: int, timer: StatStream, msg: str):
     if msg:
@@ -201,7 +247,7 @@ def default_epoch_eta_print(epoch_id: int, epoch_total: int, timer: StatStream, 
     eta = _get_time(timer) * (epoch_total - (epoch_id + 1)) / 60
     eta = f' | Train ETA: {eta:6.2f} min'
 
-    print(f'[{epoch_id:3d}/{epoch_total:3d}][    /    ]{eta} {msg}')
+    print(f'[{epoch_id + 1:3d}/{epoch_total:3d}][    /    ]{eta} {msg}')
 
 
 def default_batch_eta_print(epoch_id: int, epoch_total: int,
@@ -215,7 +261,7 @@ def default_batch_eta_print(epoch_id: int, epoch_total: int,
     else:
         eta = f' | - Epoch ETA: {eta:6.2f} min'
 
-    print(f'[{epoch_id:3d}/{epoch_total:3d}][{batch_id:4d}/{batch_total:4d}]{eta} {msg}')
+    print(f'[{epoch_id + 1:3d}/{epoch_total:3d}][{batch_id:4d}/{batch_total:4d}]{eta} {msg}')
 
 
 epoch_eta_print = default_epoch_eta_print
