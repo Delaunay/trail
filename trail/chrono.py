@@ -21,8 +21,9 @@ class ChronoContext:
 
     def __enter__(self):
         # Sync before starting timer to make sure previous work is not timed as well
-        self.depth = self.parent.depth
-        self.parent.depth += 1
+        if self.parent:
+            self.depth = self.parent.depth
+            self.parent.depth += 1
         self.sync()
 
         self.start = time.time()
@@ -33,7 +34,9 @@ class ChronoContext:
         self.sync()
         self.end = time.time()
 
-        self.parent.depth -= 1
+        if self.parent:
+            self.parent.depth -= 1
+
         if exception_type is None:
             self.accumulator.append(self.end - self.start)
         else:

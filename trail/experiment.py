@@ -20,6 +20,7 @@ from trail.persistence import build_logger
 from trail.utils.system import get_gpu_name
 from trail.serialization import to_json
 from trail.versioning import get_file_version
+from trail.utils.eta import EstimatedTime
 
 from trail.utils.out import RingOutputDecorator
 
@@ -65,13 +66,7 @@ class Experiment:
 
         self.logger: Logger = Logger(self.current_trial, build_logger(backend, **locals()))
         current_logger = self.logger
-        self.epoch_printer = None
-        self.epoch_id = 0
-        self.epoch_total = 0
-
-        self.batch_printer = None
-        self.batch_id = 0
-        self.batch_total = 0
+        self.eta = EstimatedTime(None, 1)
 
         self.top_level_file = None
         self._system_info()
@@ -79,6 +74,7 @@ class Experiment:
 
         self.stderr = None
         self.stdout = None
+        self.batch_printer = None
 
     def _system_info(self):
         self.current_trial.system_metrics['gpu'] = {
@@ -122,31 +118,14 @@ class Experiment:
     def apply_overrides(self, args: Namespace) -> Namespace:
         return args
 
-    def show_epoch_eta(self, epoch_id: int, total: int, timer: StatStream, msg: str = '',
-                       throttle=None, every=None, no_print=False):
-
-        if self.epoch_printer is None:
-            self.epoch_printer = throttled(epoch_eta_print, throttle, every)
-
-        # maybe we do not know the numbers of epochs
-        self.epoch_total = max(epoch_id, total, self.epoch_total)
-        self.epoch_id = epoch_id
-
-        if not no_print:
-            self.epoch_printer(epoch_id, self.epoch_total, timer, msg)
-
-    def show_batch_eta(self, batch_id: int, total: int, timer: StatStream, msg: str = '',
-                       throttle=None, every=None, no_print=False):
+    def show_eta(self, step: int, timer: StatStream, msg: str = '', throttle=None, every=None, no_print=False):
+        self.eta.timer = timer
 
         if self.batch_printer is None:
-            self.batch_printer = throttled(batch_eta_print, throttle, every)
-
-        # maybe we do not know the numbers of batch per epoch
-        self.batch_total = max(batch_id, total, self.batch_total)
-        self.batch_id = batch_id
+            self.batch_printer = throttled(self.eta.show_eta, throttle, every)
 
         if not no_print:
-            self.batch_printer(self.epoch_id, self.epoch_total, batch_id, self.batch_total, timer, msg)
+            self.batch_printer(step, msg)
 
     def report(self, short=True):
         """ print a digest of the logged metrics """
@@ -175,17 +154,8 @@ class Experiment:
         return torch.device('cpu')
 
     # -- Getter Setter
-    def set_total_epoch(self, t):
-        self.epoch_total = t
-
-    def set_epoch(self, t):
-        self.epoch_id = t
-
-    def set_batch_count(self, b):
-        self.batch_total = b
-
-    def set_batch_id(self, b):
-        self.batch_id = b
+    def set_eta_total(self, t):
+        self.eta.set_totals(t)
 
     def capture_output(self):
         import sys

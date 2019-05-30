@@ -41,6 +41,7 @@ class Logger(LoggerBackend):
         self.trial = trial
         acc = ValueAggregator()
         self.depth = 0
+        self.trial.chronos['runtime'] = acc
         self.parent_chrono = ChronoContext('runtime', acc, None, self)
         self.start()
         self.signal_handler = LogSignalHandler(self)

@@ -4,9 +4,6 @@ from benchutils.statstream import StatStream
 
 
 class Aggregator:
-    def __init__(self, logger=None):
-        self.logger = logger
-
     def append(self, other):
         raise NotImplementedError()
 
@@ -74,6 +71,10 @@ class StatAggregator(Aggregator):
     @property
     def avg(self):
         return self.stat.avg
+
+    @property
+    def total(self):
+        return self.stat.total
 
 
 class TimeSeriesAggregator(Aggregator):

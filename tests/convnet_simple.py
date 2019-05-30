@@ -144,6 +144,8 @@ def next_batch(batch_iter):
         return None
 
 
+exp.set_eta_total((args.epochs, len(train_loader)))
+
 with exp:
     model.train()
     for epoch in range(args.epochs):
@@ -178,8 +180,7 @@ with exp:
                         optimizer.step()
                         batch_id += 1
                 # ---
-                exp.show_batch_eta(batch_id, args.epochs, batch_time, throttle=100)
+                exp.show_eta((epoch, batch_id), batch_time, throttle=100)
             # ---
-        exp.show_epoch_eta(epoch, args.epochs, epoch_time)
 
 exp.report()
