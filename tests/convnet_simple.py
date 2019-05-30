@@ -33,7 +33,9 @@ exp = Experiment(
     experiment_name='trial_test',
     trial_name='convnet_test'
 )
+
 args = exp.get_arguments(parser, show=True)
+
 device = exp.get_device()
 
 try:
@@ -142,41 +144,42 @@ def next_batch(batch_iter):
         return None
 
 
-model.train()
-for epoch in range(args.epochs):
-    batch_iter = iter(train_loader)
+with exp:
+    model.train()
+    for epoch in range(args.epochs):
+        batch_iter = iter(train_loader)
 
-    with exp.chrono('epoch_time') as epoch_time:
-        batch_id = 0
-        while True:
-            with exp.chrono('batch_time') as batch_time:
+        with exp.chrono('epoch_time') as epoch_time:
+            batch_id = 0
+            while True:
+                with exp.chrono('batch_time') as batch_time:
 
-                with exp.chrono('batch_wait'):
-                    batch = next_batch(batch_iter)
+                    with exp.chrono('batch_wait'):
+                        batch = next_batch(batch_iter)
 
-                if batch is None:
-                    break
+                    if batch is None:
+                        break
 
-                with exp.chrono('batch_compute'):
-                    input, target = batch
+                    with exp.chrono('batch_compute'):
+                        input, target = batch
 
-                    output = model(input)
-                    loss = criterion(output, target)
+                        output = model(input)
+                        loss = criterion(output, target)
 
-                    exp.log_metrics(step=(epoch, batch_id), loss=loss.item())
+                        exp.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
-                    # compute gradient and do SGD step
-                    optimizer.zero_grad()
+                        # compute gradient and do SGD step
+                        optimizer.zero_grad()
 
-                    # with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    #    scaled_loss.backward()
-                    loss.backward()
+                        # with amp.scale_loss(loss, optimizer) as scaled_loss:
+                        #    scaled_loss.backward()
+                        loss.backward()
 
-                    optimizer.step()
-                    batch_id += 1
+                        optimizer.step()
+                        batch_id += 1
+                # ---
+                exp.show_batch_eta(batch_id, args.epochs, batch_time, throttle=100)
             # ---
-            exp.show_batch_eta(batch_id, args.epochs, batch_time, throttle=100)
-        # ---
-    exp.show_epoch_eta(epoch, args.epochs, epoch_time)
+        exp.show_epoch_eta(epoch, args.epochs, epoch_time)
 
 exp.report()

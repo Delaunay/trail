@@ -12,6 +12,9 @@ class LoggerBackend:
     def log_metrics(self, step=None, **kwargs):
         raise NotImplementedError()
 
+    def set_status(self, status, error=None):
+        raise NotImplementedError
+
 
 class NoLogLogger(LoggerBackend):
 
@@ -22,4 +25,7 @@ class NoLogLogger(LoggerBackend):
         pass
 
     def log_metrics(self, step=None, **kwargs):
+        pass
+
+    def set_status(self, status, error=None):
         pass

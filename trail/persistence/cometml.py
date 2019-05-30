@@ -1,7 +1,8 @@
-from trail.backends.logger import LoggerBackend
+from trail.persistence.logger import LoggerBackend
 from argparse import Namespace
 
 from comet_ml import Experiment
+from comet_ml import API
 
 
 class CMLLogger(LoggerBackend):
@@ -17,3 +18,19 @@ class CMLLogger(LoggerBackend):
     def log_metrics(self, step=None, **kwargs):
         for key, value in kwargs.items():
             self.exp.log_metric(key, value, step=step)
+
+    def set_status(self, status, error=None):
+        self.exp.log_other('status', status)
+        if error is not None:
+            self.exp.log_other('errors', error)
+
+
+class CMLQuery:
+
+    def __init__(self, workspace, project):
+        self.workspace = workspace
+        self.project = project
+        self.cml_api = API()
+        self.experiments = self.cml_api.get(self.workspace, self.project)
+
+

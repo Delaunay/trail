@@ -2,7 +2,9 @@ from argparse import Namespace
 from typing import Callable
 
 from trail.containers.types import float32
-from trail.trial import Trial
+from trail.trial import Trial, Status
+
+from trail.utils.signal import SignalHandler
 
 from trail.chrono import ChronoContext
 from trail.aggregators.aggregator import Aggregator
@@ -10,6 +12,7 @@ from trail.aggregators.aggregator import RingAggregator
 from trail.aggregators.aggregator import StatAggregator
 from trail.aggregators.aggregator import ValueAggregator
 from trail.aggregators.aggregator import TimeSeriesAggregator
+from trail.persistence.logger import LoggerBackend, NoLogLogger
 
 
 ring_aggregator = RingAggregator.lazy(10, float32)
@@ -17,30 +20,38 @@ stat_aggregator = StatAggregator.lazy(1)
 ts_aggregator = TimeSeriesAggregator.lazy()
 
 
-class Logger:
-    def __init__(self, trial: Trial, backend=None):
+class LogSignalHandler(SignalHandler):
+    def __init__(self, logger):
+        super(LogSignalHandler, self).__init__()
+        self.logger = logger
+
+    def sigterm(self, signum, frame):
+        self.logger.set_status(Status.Interrupted, error=frame)
+
+    def sigint(self, signum, frame):
+        self.logger.set_status(Status.Interrupted, error=frame)
+
+
+class Logger(LoggerBackend):
+    """ Unified logger interface.
+    To log to a specific backend you should pass the desired backend to the constructor """
+
+    def __init__(self, trial: Trial, backend=NoLogLogger()):
+        self.backend = backend
         self.trial = trial
         acc = ValueAggregator()
         self.depth = 0
         self.parent_chrono = ChronoContext('runtime', acc, None, self)
         self.start()
-        self.backend = backend
+        self.signal_handler = LogSignalHandler(self)
 
-    def log_value(self, key: str, value: any, aggregator: Callable[[], Aggregator] = ring_aggregator):
-        storage = self.trial.values
-        agg = storage.get(key)
-
-        if agg is None:
-            agg = aggregator()
-            storage[key] = agg
-
-        agg.append(value)
-
-    def log_argument(self, name, key):
-        self.trial.args[name] = key
+    def log_argument(self, key, value):
+        self.trial.args[key] = value
+        self.backend.log_argument(key, value)
 
     def log_arguments(self, args: Namespace):
         self.trial.args.update(dict(**vars(args)))
+        self.backend.log_arguments(args)
 
     def _make_container(self, step, aggregator):
         if step is None:
@@ -76,20 +87,33 @@ class Logger:
             else:
                 container.append(v)
 
+        self.backend.log_metrics(step, **kwarg)
+
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
         """ create a chrono context to time the runtime of the code inside it"""
-        agg = self.trial.values.get(name)
+        agg = self.trial.chronos.get(name)
         if agg is None:
             agg = aggregator()
-            self.trial.values[name] = agg
+            self.trial.chronos[name] = agg
 
         return ChronoContext(name, agg, sync, self.parent_chrono)
 
     # Context API for starting the top level chrono
-    def finish(self):
-        self.parent_chrono.__exit__(None, None, None)
+    def finish(self, exc_type=None, exc_val=None, exc_tb=None):
+        metrics = {}
+        for k, v in self.trial.chronos.items():
+            metrics[k] = v.to_json()
+
+        self.backend.log_metrics(**metrics)
+        if exc_type is not None:
+            self.set_status(Status.Exception, error=exc_type)
+        else:
+            self.set_status(Status.Completed)
+
+        self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
 
     def start(self):
+        self.set_status(Status.Running)
         self.parent_chrono.__enter__()
 
     def __enter__(self):
@@ -97,4 +121,10 @@ class Logger:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
+        self.finish(exc_type, exc_val, exc_tb)
+
+    def set_status(self, status, error=None):
+        self.trial.status = status
+        if error is not None:
+            self.trial.errors.append(error)
+        self.backend.set_status(status, error)

@@ -10,17 +10,18 @@ from trail.utils.throttle import throttled
 from trail.containers.types import float32
 from trail.trial import Trial
 
-from trail.chrono import ChronoContext
 from trail.aggregators.aggregator import Aggregator
 from trail.aggregators.aggregator import RingAggregator
 from trail.aggregators.aggregator import StatAggregator
-from trail.aggregators.aggregator import ValueAggregator
 from trail.aggregators.aggregator import TimeSeriesAggregator
 
-from trail.backends.local import Logger
+from trail.logger import Logger
+from trail.persistence import build_logger
 from trail.utils.system import get_gpu_name
 from trail.serialization import to_json
-from trail.versioning import get_file_version, get_git_version
+from trail.versioning import get_file_version
+
+from trail.utils.out import RingOutputDecorator
 
 
 ring_aggregator = RingAggregator.lazy(10, float32)
@@ -53,7 +54,7 @@ class ExperimentData:
 class Experiment:
     """ An experiment is a set of trials. Trials are """
 
-    def __init__(self, experiment_name, trial_name: str = None, description: str = None):
+    def __init__(self, experiment_name, trial_name: str = None, description: str = None, backend='local'):
         global current_trial
         global current_logger
 
@@ -62,7 +63,8 @@ class Experiment:
         current_trial = self.current_trial
         self.exp.trials.append(self.current_trial)
 
-        self.logger: Logger = Logger(self.current_trial)
+        self.logger: Logger = Logger(self.current_trial, build_logger(backend, **locals()))
+        current_logger = self.logger
         self.epoch_printer = None
         self.epoch_id = 0
         self.epoch_total = 0
@@ -75,6 +77,8 @@ class Experiment:
         self._system_info()
         self._version_info()
 
+        self.stderr = None
+        self.stdout = None
 
     def _system_info(self):
         self.current_trial.system_metrics['gpu'] = {
@@ -99,7 +103,6 @@ class Experiment:
 
     def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
         """ Store the arguments that was used to run the trial.
-            If an hyper parameter optimizer is used some overrides might be applied to the parameters
         """
 
         if isinstance(args, ArgumentParser):
@@ -146,8 +149,14 @@ class Experiment:
             self.batch_printer(self.epoch_id, self.epoch_total, batch_id, self.batch_total, timer, msg)
 
     def report(self, short=True):
+        """ print a digest of the logged metrics """
         self.logger.finish()
         print(json.dumps(to_json(self.current_trial, short), indent=2))
+
+    def save(self, file_name):
+        """ saved logged metrics into a json file """
+        with open(file_name, 'w') as out:
+            json.dump(to_json(self.current_trial), out, indent=2)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = ring_aggregator, **kwargs):
         return self.logger.log_metrics(step, aggregator, **kwargs)
@@ -158,9 +167,9 @@ class Experiment:
 
     @staticmethod
     def get_device():
-        import torch.cuda
-
         """ helper function that returns a cuda device if available else a cpu"""
+        import torch
+
         if torch.cuda.is_available():
             return torch.device('cuda')
         return torch.device('cpu')
@@ -177,6 +186,25 @@ class Experiment:
 
     def set_batch_id(self, b):
         self.batch_id = b
+
+    def capture_output(self):
+        import sys
+        sys.stdout = RingOutputDecorator(file=sys.stdout, n_entries=50)
+        sys.stderr = RingOutputDecorator(file=sys.stderr, n_entries=50)
+
+    # Context API for starting the top level chrono
+    def finish(self, exc_type=None, exc_val=None, exc_tb=None):
+        self.logger.finish(exc_type, exc_val, exc_tb)
+
+    def start(self):
+        self.logger.start()
+
+    def __enter__(self):
+        self.logger.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.logger.finish(exc_type, exc_val, exc_tb)
 
 
 def default_epoch_eta_print(epoch_id: int, epoch_total: int, timer: StatStream, msg: str):

@@ -4,6 +4,9 @@ from benchutils.statstream import StatStream
 
 
 class Aggregator:
+    def __init__(self, logger=None):
+        self.logger = logger
+
     def append(self, other):
         raise NotImplementedError()
 
@@ -115,3 +118,9 @@ class ValueAggregator(Aggregator):
 
     def to_json(self, short=False):
         return self.value
+
+
+def aggregate(agg, value):
+    if agg.logger is None:
+        return agg.append(value)
+    agg.append(value)
