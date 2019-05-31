@@ -1,4 +1,5 @@
 from .logger import NoLogLogger
+from trail.experiment import get_current_experiment
 
 
 def build_logger(backend_name, **kwargs):
@@ -10,3 +11,22 @@ def build_logger(backend_name, **kwargs):
 
     return NoLogLogger()
 
+
+def query(backend_name, **kwargs):
+    """
+
+    :param backend_name:
+        -  comet_ml
+
+    :param kwargs:
+        - for comet_ml: workspace, project
+
+    :return:
+        - RemoteExperiment()
+    """
+
+    if backend_name == 'comet_ml':
+        from .cometml import CMLExperiment
+        return CMLExperiment(**kwargs)
+
+    return get_current_experiment()

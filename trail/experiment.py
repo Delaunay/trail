@@ -30,6 +30,7 @@ stat_aggregator = StatAggregator.lazy(1)
 ts_aggregator = TimeSeriesAggregator.lazy()
 current_trial = None
 current_logger = None
+current_experiment = None
 
 
 def get_current_trial():
@@ -38,6 +39,10 @@ def get_current_trial():
 
 def get_current_logger():
     return current_logger
+
+
+def get_current_experiment():
+    return current_experiment
 
 
 @dataclass
@@ -58,8 +63,11 @@ class Experiment:
     def __init__(self, experiment_name, trial_name: str = None, description: str = None, backend='local', **kwargs):
         global current_trial
         global current_logger
+        global current_experiment
 
         self.exp = ExperimentData(experiment_name, description)
+        current_experiment = self.exp
+
         self.current_trial = Trial(name=trial_name)
         current_trial = self.current_trial
         self.exp.trials.append(self.current_trial)
