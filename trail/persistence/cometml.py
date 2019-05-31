@@ -1,8 +1,14 @@
 from trail.persistence.logger import LoggerBackend
+from trail.persistence.query import RemoteExperiment, RemoteTrial
+from trail.trial import Status
 from trail.utils.log import warning
+
+from collections import defaultdict
+from typing import List, Dict
 from argparse import Namespace
 
 from comet_ml import Experiment
+from comet_ml.api import APIExperiment
 from comet_ml import API
 
 
@@ -58,13 +64,52 @@ class CMLLogger(LoggerBackend):
             self.exp.log_other(key, value)
 
 
-class CMLQuery:
+class CMLTrial(RemoteTrial):
+    def __init__(self, cml_trial: APIExperiment):
+        self.trial = cml_trial
+        self._other = None
+        self._metrics = None
 
+    def _get_metrics(self, key):
+        if self._metrics is not None:
+            return self._metrics.get(key)
+
+        self._metrics = defaultdict(list)
+        for item in self.trial.metrics_raw:
+            self._metrics[item['metricName']].append(item)
+
+        return self._metrics.get(key)
+
+    def _get_other(self, key):
+        if self._other is not None:
+            return self._other.get(key)
+
+        self._other = dict()
+        for item in self.trial.other:
+            self._other[item['name']] = item
+
+        return self._other.get(key)
+
+    @property
+    def metrics(self) -> Dict[any, Dict[any, any]]:
+        self._get_metrics(None)
+        return self.trial._metrics
+
+    @property
+    def status(self) -> Status:
+        return Status(self._get_other('status_code'))
+
+
+class CMLExperiment(RemoteExperiment):
     def __init__(self, workspace, project):
         self.workspace = workspace
         self.project = project
         self.cml_api = API()
-        self.experiments = self.cml_api.get(self.workspace, self.project)
+        trials = self.cml_api.get(workspace=self.workspace, project=self.project)
+        self._trials = [CMLTrial(t) for t in trials]
 
+    @property
+    def trials(self) -> List[CMLTrial]:
+        return self._trials
 
 
