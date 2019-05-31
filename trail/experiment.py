@@ -55,7 +55,7 @@ class ExperimentData:
 class Experiment:
     """ An experiment is a set of trials. Trials are """
 
-    def __init__(self, experiment_name, trial_name: str = None, description: str = None, backend='local'):
+    def __init__(self, experiment_name, trial_name: str = None, description: str = None, backend='local', **kwargs):
         global current_trial
         global current_logger
 
@@ -64,7 +64,7 @@ class Experiment:
         current_trial = self.current_trial
         self.exp.trials.append(self.current_trial)
 
-        self.logger: Logger = Logger(self.current_trial, build_logger(backend, **locals()))
+        self.logger: Logger = Logger(self.current_trial, build_logger(backend, **kwargs))
         current_logger = self.logger
         self.eta = EstimatedTime(None, 1)
 
@@ -75,6 +75,13 @@ class Experiment:
         self.stderr = None
         self.stdout = None
         self.batch_printer = None
+        
+    def __getattr__(self, item):
+        """ try to use the backend attributes if not available """
+        if hasattr(self.logger.backend.exp, item):
+            return getattr(self.logger.backend.exp, item)
+
+        raise AttributeError(item)
 
     def _system_info(self):
         self.current_trial.system_metrics['gpu'] = {
@@ -137,8 +144,8 @@ class Experiment:
         with open(file_name, 'w') as out:
             json.dump(to_json(self.current_trial), out, indent=2)
 
-    def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = ring_aggregator, **kwargs):
-        return self.logger.log_metrics(step, aggregator, **kwargs)
+    def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        return self.logger.log_metrics(step=step, aggregator=aggregator, **kwargs)
 
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
         """ create a chrono context to time the runtime of the code inside it"""
@@ -175,39 +182,4 @@ class Experiment:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.logger.finish(exc_type, exc_val, exc_tb)
-
-
-def default_epoch_eta_print(epoch_id: int, epoch_total: int, timer: StatStream, msg: str):
-    if msg:
-        msg = ' | ' + msg
-
-    eta = _get_time(timer) * (epoch_total - (epoch_id + 1)) / 60
-    eta = f' | Train ETA: {eta:6.2f} min'
-
-    print(f'[{epoch_id + 1:3d}/{epoch_total:3d}][    /    ]{eta} {msg}')
-
-
-def default_batch_eta_print(epoch_id: int, epoch_total: int,
-                            batch_id: int, batch_total: int, timer: StatStream, msg: str):
-    if msg:
-        msg = ' | ' + msg
-
-    eta = _get_time(timer) * (batch_total - (batch_id + 1)) / 60
-    if epoch_total == 0:
-        eta = ''
-    else:
-        eta = f' | - Epoch ETA: {eta:6.2f} min'
-
-    print(f'[{epoch_id + 1:3d}/{epoch_total:3d}][{batch_id:4d}/{batch_total:4d}]{eta} {msg}')
-
-
-epoch_eta_print = default_epoch_eta_print
-batch_eta_print = default_batch_eta_print
-
-
-def _get_time(time: StatStream):
-    avg = time.avg
-    if avg == 0:
-        return time.val
-    return avg
 

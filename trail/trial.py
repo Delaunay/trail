@@ -42,6 +42,7 @@ class Trial:
     errors: List[any] = field(default_factory=list)
     chronos: Dict[str, any] = field(default_factory=dict)
     metrics: Dict[any, Dict[any, any]] = field(default_factory=lambda: defaultdict(dict))
+    others: Dict[any, Dict[any, any]] = field(default_factory=lambda: defaultdict(dict))
 
     def to_json(self, short=False):
         return {
@@ -49,6 +50,7 @@ class Trial:
             'version': self.version,
             'arguments': to_json(self.args, short),
             'metrics': to_json(self.metrics, short),
+            'others': to_json(self.others, short),
             'chronos': to_json(self.chronos, short),
             'system_metrics': to_json(self.system_metrics, short),
             'status': self.status.value

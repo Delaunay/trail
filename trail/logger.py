@@ -61,9 +61,9 @@ class Logger(LoggerBackend):
                 return ts_aggregator()
             return aggregator()
         else:
-            return {}
+            return dict()
 
-    def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwarg):
+    def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         """
             :params step optional key that optionally can be set; originally meant as a way to specify a kind of
                     id representing at which step of the training process the model is at.
@@ -73,22 +73,33 @@ class Logger(LoggerBackend):
 
             :params kwargs: key, value pair representing the metrics that need to be logged
         """
-
-        for k, v in kwarg.items():
+        for k, v in kwargs.items():
             container = self.trial.metrics.get(k)
 
             if container is None:
                 container = self._make_container(step, aggregator)
                 self.trial.metrics[k] = container
 
-            if step and isinstance(container, dict):
+            if step is not None and isinstance(container, dict):
                 container[step] = v
             elif step:
                 container.append((step, v))
             else:
                 container.append(v)
 
-        self.backend.log_metrics(step, **kwarg)
+        self.backend.log_metrics(step, **kwargs)
+
+    def log_others(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        for k, v in kwargs.items():
+            container = self.trial.others.get(k)
+
+            if container is None:
+                container = self._make_container(None, aggregator)
+                self.trial.others[k] = container
+
+            container.append(v)
+
+        self.backend.log_others(**kwargs)
 
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
         """ create a chrono context to time the runtime of the code inside it"""
@@ -103,9 +114,9 @@ class Logger(LoggerBackend):
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
         metrics = {}
         for k, v in self.trial.chronos.items():
-            metrics[k] = v.to_json()
+            metrics[f'chrono_{k}'] = v.to_json()
 
-        self.backend.log_metrics(**metrics)
+        self.backend.log_others(**metrics)
         if exc_type is not None:
             self.set_status(Status.Exception, error=exc_type)
         else:

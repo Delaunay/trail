@@ -1,3 +1,7 @@
+import trail.persistence.cometml
+from trail import Experiment
+
+import sys
 import torch
 import torch.nn as nn
 import torch.optim
@@ -8,7 +12,7 @@ import torchvision.models as models
 import torch.nn.functional as F
 
 #from apex import amp
-from trail import Experiment
+sys.stderr = sys.stdout
 
 # ----
 import argparse
@@ -24,18 +28,23 @@ parser.add_argument('--epochs', '-e', type=int, default=5, help='number of epoch
 
 parser.add_argument('--arch', '-a', metavar='ARCH', default='convnet')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float, metavar='LR')
+parser.add_argument('--momentum', default=0.9, type=float, metavar='MT')
 parser.add_argument('--opt-level', default='O0', type=str)
 
 parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
 
 # ----
 exp = Experiment(
-    experiment_name='trial_test',
-    trial_name='convnet_test'
+    experiment_name='convnet',
+    trial_name='convnet_test',
+    #
+    backend='comet_ml',
+
+    workspace='trail-test',
+    project_name='convnet'
 )
 
 args = exp.get_arguments(parser, show=True)
-
 device = exp.get_device()
 
 try:
@@ -87,7 +96,9 @@ criterion = nn.CrossEntropyLoss().to(device)
 
 optimizer = torch.optim.SGD(
     model.parameters(),
-    args.lr)
+    args.lr,
+    args.momentum
+)
 
 # ----
 # model, optimizer = amp.initialize(
@@ -153,6 +164,7 @@ with exp:
 
         with exp.chrono('epoch_time') as epoch_time:
             batch_id = 0
+            epoch_loss = 0
             while True:
                 with exp.chrono('batch_time') as batch_time:
 
@@ -168,6 +180,7 @@ with exp:
                         output = model(input)
                         loss = criterion(output, target)
 
+                        epoch_loss += loss.item()
                         exp.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
                         # compute gradient and do SGD step
@@ -180,6 +193,8 @@ with exp:
                         optimizer.step()
                         batch_id += 1
                 # ---
+                epoch_loss /= len(train_loader)
+                exp.log_metrics(step=epoch, epoch_loss=epoch_loss)
                 exp.show_eta((epoch, batch_id), batch_time, throttle=100)
             # ---
 
