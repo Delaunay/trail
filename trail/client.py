@@ -54,6 +54,7 @@ class TrailClient:
 
         project.trials.append(self.trial)
         self.logger.set_project(project)
+        return self
 
     def set_group(self, group=None, name=None, tags=None, description=None):
         if self.project is None:
@@ -69,6 +70,7 @@ class TrailClient:
 
         group.trials.append(self.trial.uid)
         self.logger.set_group(group)
+        return self
 
     def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
@@ -88,6 +90,11 @@ class TrailClient:
 
     def __getattr__(self, item):
         """ try to use the backend attributes if not available """
+        #def chainer(fun):
+        #    def _chainer(*args, **kwargs):
+        #        fun(*args, **kwargs)
+        #        return self
+        #    return _chainer
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):
@@ -115,7 +122,11 @@ class TrailClient:
     def _log_code(self):
         self.current_trial = open(self.top_level_file, 'r').read()
 
-    def show_eta(self, step: int, timer: StatStream, msg: str = '', throttle=None, every=None, no_print=False):
+    def show_eta(self, step: int, timer: StatStream, msg: str = '',
+                 throttle=options('log.print.throttle', None),
+                 every=options('log.print.every', None),
+                 no_print=options('log.print.disable', False)):
+
         self.eta.timer = timer
 
         if self.batch_printer is None:
@@ -164,10 +175,10 @@ class TrailClient:
     def capture_output(self):
         import sys
         do_stderr = sys.stderr is not sys.stdout
-        sys.stdout = RingOutputDecorator(file=sys.stdout, n_entries=50)
+        sys.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', 50))
 
         if do_stderr:
-            sys.stderr = RingOutputDecorator(file=sys.stderr, n_entries=50)
+            sys.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
 
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
         return self.logger.finish(exc_type, exc_val, exc_tb)

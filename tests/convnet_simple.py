@@ -1,5 +1,5 @@
 import trail.persistence.cometml
-from trail import TrailClient
+from trail import TrailClient, Project, TrialGroup
 
 import sys
 import torch
@@ -34,7 +34,20 @@ parser.add_argument('--opt-level', default='O0', type=str)
 parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
 
 # ----
+
 trial = TrailClient()
+trial.add_tags(
+    workers=8,
+    hpo='byopt'
+)
+trial.set_project(
+    name='ConvnetTest',
+    description='Trail test example'
+)
+trial.set_group(
+    name='test_group'
+)
+
 
 args = trial.get_arguments(parser, show=True)
 device = trial.get_device()
@@ -173,7 +186,7 @@ with trial:
                         loss = criterion(output, target)
 
                         epoch_loss += loss.item()
-                        trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
+                        # trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
                         # compute gradient and do SGD step
                         optimizer.zero_grad()

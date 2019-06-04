@@ -39,6 +39,10 @@ class LoggerBackend:
         """ add a tag, tags are used to lookup trials"""
         raise NotImplementedError()
 
+    def add_tags(self, **kwargs):
+        for k, v in kwargs.items():
+            self.add_tag(k, v)
+
     def set_project(self, project):
         """ set the top level project this trial belong to"""
         raise NotImplementedError()

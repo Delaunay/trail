@@ -154,6 +154,6 @@ class Logger(LoggerBackend):
         pass
 
     def set_group(self, group):
-        raise NotImplementedError()
+        pass
 
 

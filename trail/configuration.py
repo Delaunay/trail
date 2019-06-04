@@ -40,7 +40,16 @@ def _load_config_file():
         _configuration = json.load(cfile)
 
 
-def options(key, default=None):
+# Used to find if a default was provided or not
+# we cannot use None because None might the provided default
+class _DefaultNone:
+    pass
+
+
+none = _DefaultNone()
+
+
+def options(key, default=none):
     global _configuration
     conf = _configuration
     keys = key.split('.')
@@ -58,8 +67,8 @@ def options(key, default=None):
 
         conf = conf.get(k)
 
-    if conf is None and default is None:
-        warning(f'No configuration found for (key: {key})')
+    if conf is None and default is none:
+        warning(f'No configuration found for (key: {key}) and no default was provided')
 
     if conf is None:
         return default
