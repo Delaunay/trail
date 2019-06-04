@@ -1,7 +1,7 @@
 import logging
 
 
-logging.basicConfig(format='[%(levelname)s][%(process)d] %(pathname)s:%(lineno)d %(message)s')
+logging.basicConfig(format='[%(levelname)s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
 trail_logger = logging.getLogger('TRAIL')
 
 warning = trail_logger.warning

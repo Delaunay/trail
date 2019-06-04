@@ -27,8 +27,6 @@ def _look_for_configuration(file_name='trail.config'):
     if len(files) > 1:
         warning(f'found multiple configuration file: {", ".join(files)}')
 
-    _config_file = None
-
 
 def _load_config_file():
     global _config_file

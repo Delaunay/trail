@@ -2,7 +2,7 @@ from argparse import Namespace
 from typing import Callable
 
 from trail.containers.types import float32
-from trail.trial import Trial, Status
+from trail.struct import Trial, Status
 
 from trail.utils.signal import SignalHandler
 
@@ -46,12 +46,15 @@ class Logger(LoggerBackend):
         self.start()
         self.signal_handler = LogSignalHandler(self)
 
+    def add_tag(self, key, value):
+        self.trial.tags[key] = value
+
     def log_argument(self, key, value):
-        self.trial.args[key] = value
+        self.trial.parameters[key] = value
         self.backend.log_argument(key, value)
 
     def log_arguments(self, args: Namespace):
-        self.trial.args.update(dict(**vars(args)))
+        self.trial.parameters.update(dict(**vars(args)))
         self.backend.log_arguments(args)
 
     def _make_container(self, step, aggregator):
@@ -89,17 +92,17 @@ class Logger(LoggerBackend):
 
         self.backend.log_metrics(step, **kwargs)
 
-    def log_others(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
+    def log_metadata(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
         for k, v in kwargs.items():
-            container = self.trial.others.get(k)
+            container = self.trial.metadata.get(k)
 
             if container is None:
                 container = self._make_container(None, aggregator)
-                self.trial.others[k] = container
+                self.trial.metadata[k] = container
 
             container.append(v)
 
-        self.backend.log_others(**kwargs)
+        self.backend.log_metadata(**kwargs)
 
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
         """ create a chrono context to time the runtime of the code inside it"""
@@ -116,7 +119,7 @@ class Logger(LoggerBackend):
         for k, v in self.trial.chronos.items():
             metrics[f'chrono_{k}'] = v.to_json()
 
-        self.backend.log_others(**metrics)
+        self.backend.log_metadata(**metrics)
         if exc_type is not None:
             self.set_status(Status.Exception, error=exc_type)
         else:
@@ -140,3 +143,17 @@ class Logger(LoggerBackend):
         if error is not None:
             self.trial.errors.append(error)
         self.backend.set_status(status, error)
+
+    def log_file(self, file_name):
+        pass
+
+    def log_directory(self, name, recursive=False):
+        pass
+
+    def set_project(self, project):
+        pass
+
+    def set_group(self, group):
+        raise NotImplementedError()
+
+

@@ -1,7 +1,7 @@
 import git
 import hashlib
 
-from typing import Tuple
+from typing import Tuple, List
 
 
 def get_git_version(module) -> Tuple[str, str]:
@@ -19,23 +19,23 @@ BUF_SIZE = 65536
 
 def get_file_version(file_name: str) -> str:
     """ hash the file using sha256, used in combination with get_git_version to version non committed modifications """
+    return compute_version([file_name])
+
+
+def compute_version(files: List[str]) -> str:
     sha256 = hashlib.sha256()
 
-    with open(file_name, 'rb') as f:
-        while True:
-            data = f.read(BUF_SIZE)
+    for file in files:
+        with open(file, 'r') as code:
+            while True:
+                data = code.read(BUF_SIZE)
 
-            if not data:
-                break
+                if not data:
+                    break
 
-            sha256.update(data)
+                sha256.update(data)
 
     return sha256.hexdigest()
-
-
-def get_diff_version(file_name):
-    """ if """
-    pass
 
 
 if __name__ == '__main__':

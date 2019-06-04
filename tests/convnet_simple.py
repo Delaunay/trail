@@ -1,5 +1,5 @@
 import trail.persistence.cometml
-from trail import Experiment
+from trail import TrailClient
 
 import sys
 import torch
@@ -34,18 +34,10 @@ parser.add_argument('--opt-level', default='O0', type=str)
 parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
 
 # ----
-exp = Experiment(
-    experiment_name='convnet',
-    trial_name='convnet_test',
-    #
-    backend='comet_ml',
+trial = TrailClient()
 
-    workspace='trail-test',
-    project_name='convnet'
-)
-
-args = exp.get_arguments(parser, show=True)
-device = exp.get_device()
+args = trial.get_arguments(parser, show=True)
+device = trial.get_device()
 
 try:
     import torch.backends.cudnn as cudnn
@@ -155,33 +147,33 @@ def next_batch(batch_iter):
         return None
 
 
-exp.set_eta_total((args.epochs, len(train_loader)))
+trial.set_eta_total((args.epochs, len(train_loader)))
 
-with exp:
+with trial:
     model.train()
     for epoch in range(args.epochs):
         batch_iter = iter(train_loader)
 
-        with exp.chrono('epoch_time') as epoch_time:
+        with trial.chrono('epoch_time') as epoch_time:
             batch_id = 0
             epoch_loss = 0
             while True:
-                with exp.chrono('batch_time') as batch_time:
+                with trial.chrono('batch_time') as batch_time:
 
-                    with exp.chrono('batch_wait'):
+                    with trial.chrono('batch_wait'):
                         batch = next_batch(batch_iter)
 
                     if batch is None:
                         break
 
-                    with exp.chrono('batch_compute'):
+                    with trial.chrono('batch_compute'):
                         input, target = batch
 
                         output = model(input)
                         loss = criterion(output, target)
 
                         epoch_loss += loss.item()
-                        exp.log_metrics(step=(epoch, batch_id), loss=loss.item())
+                        trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
                         # compute gradient and do SGD step
                         optimizer.zero_grad()
@@ -194,8 +186,9 @@ with exp:
                         batch_id += 1
                 # ---
                 epoch_loss /= len(train_loader)
-                exp.log_metrics(step=epoch, epoch_loss=epoch_loss)
-                exp.show_eta((epoch, batch_id), batch_time, throttle=100)
+                trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
+                trial.show_eta((epoch, batch_id), batch_time, throttle=100)
             # ---
 
-exp.report()
+trial.report()
+trial.save()

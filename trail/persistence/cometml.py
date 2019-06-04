@@ -1,6 +1,6 @@
 from trail.persistence.logger import LoggerBackend
 from trail.persistence.query import RemoteExperiment, RemoteTrial
-from trail.trial import Status
+from trail.struct import Status
 from trail.utils.log import warning
 
 from collections import defaultdict
@@ -55,13 +55,29 @@ class CMLLogger(LoggerBackend):
         if error is not None:
             self.exp.log_other('errors', error)
 
-    def log_others(self, **kwargs):
+    def log_metadata(self, **kwargs):
         for key, value in kwargs.items():
             # Comet does not support a lot of types
             if not isinstance(value, (int, float, str)):
                 value = str(value)
 
             self.exp.log_other(key, value)
+
+    def set_project(self, project):
+        self.exp.log_other('project_id', project)
+
+    def set_group(self, group):
+        self.exp.log_other('group_id', group)
+
+    def add_tag(self, key, value):
+        self.exp.log_other(f'tag_{key}', value)
+
+    def __getattr__(self, item):
+        """ try to use the backend attributes if not available """
+
+        # Look for the attribute in the top level logger
+        if hasattr(self.exp, item):
+            return getattr(self.exp, item)
 
 
 class CMLTrial(RemoteTrial):

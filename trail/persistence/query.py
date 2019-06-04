@@ -1,5 +1,5 @@
 from typing import Dict, List
-from trail.trial import Status
+from trail.struct import Status
 
 
 class RemoteTrial:

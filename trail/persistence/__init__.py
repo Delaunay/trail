@@ -12,7 +12,7 @@ def build_logger(backend_name, **kwargs):
 
 
 def query(backend_name, **kwargs):
-    from trail.experiment import get_current_experiment
+    from trail.client import get_current_experiment
 
     """
 

@@ -1,3 +1,3 @@
 
 
-from .experiment import Experiment
+from .client import TrailClient
