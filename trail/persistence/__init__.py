@@ -1,5 +1,4 @@
 from .logger import NoLogLogger
-from trail.experiment import get_current_experiment
 
 
 def build_logger(backend_name, **kwargs):
@@ -13,6 +12,8 @@ def build_logger(backend_name, **kwargs):
 
 
 def query(backend_name, **kwargs):
+    from trail.experiment import get_current_experiment
+
     """
 
     :param backend_name:

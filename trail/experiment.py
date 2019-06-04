@@ -21,7 +21,7 @@ from trail.utils.system import get_gpu_name
 from trail.serialization import to_json
 from trail.versioning import get_file_version
 from trail.utils.eta import EstimatedTime
-
+from trail.configuration import options
 from trail.utils.out import RingOutputDecorator
 
 
@@ -60,7 +60,8 @@ class ExperimentData:
 class Experiment:
     """ An experiment is a set of trials. Trials are """
 
-    def __init__(self, experiment_name, trial_name: str = None, description: str = None, backend='local', **kwargs):
+    def __init__(self, experiment_name, trial_name: str = None, description: str = None,
+                 backend=options('log.backend.name', default='none'), **kwargs):
         global current_trial
         global current_logger
         global current_experiment
