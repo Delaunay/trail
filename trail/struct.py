@@ -21,6 +21,7 @@ class Status(Enum):
     Completed = 302      # -> has finished running
 
 
+
 @dataclass
 class Trial:
     """ A single training run """
@@ -44,26 +45,6 @@ class Trial:
     # List of errors that occurred during the training
     errors: List[str] = field(default_factory=list)
 
-    def to_json(self, short=False):
-        return {
-            'dtype': 'trial',
-            'uid': to_json(self.uid),
-            'name': self.name,
-            'description': self.description,
-            'tags': self.tags,
-            'group_id': self.group_id,
-            'project_id': self.project_id,
-            'parameters': to_json(self.parameters, short),
-            'metadata': to_json(self.metadata, short),
-            'metrics': to_json(self.metrics, short),
-            'chronos': to_json(self.chronos, short),
-            'errors': self.errors,
-            'status': {
-                'value': self.status.value,
-                'name': self.status.name
-            }
-        }
-
     def __hash__(self):
         return self.uid
 
@@ -80,17 +61,6 @@ class TrialGroup:
 
     project_id: Optional[int] = None
 
-    def to_json(self, short=False):
-        return {
-            'dtype': 'trial_group',
-            'uid': to_json(self.uid),
-            'name': self.name,
-            'description': self.description,
-            'tags': self.tags,
-            'project_id': self.project_id,
-            'trials': [to_json(t.uid) for t in self.trials]
-        }
-
 
 @dataclass
 class Project:
@@ -105,17 +75,6 @@ class Project:
     tags: List[str] = field(default_factory=list)
     groups: List[TrialGroup] = field(default_factory=list)
     trials: List[Trial] = field(default_factory=list)
-
-    def to_json(self, short=False):
-        return {
-            'dtype': 'project',
-            'uid': to_json(self.uid),
-            'name': self.name,
-            'description': self.description,
-            'tags': self.tags,
-            'trials': [to_json(t, short) for t in self.trials],
-            'groups': [to_json(g, short) for g in self.groups]
-        }
 
 
 _current_project = None

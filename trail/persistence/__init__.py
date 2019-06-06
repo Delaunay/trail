@@ -1,4 +1,5 @@
 from .logger import NoLogLogger
+from trail.serialization import load_database
 
 
 def build_logger(backend_name, **kwargs):
@@ -11,8 +12,9 @@ def build_logger(backend_name, **kwargs):
     return NoLogLogger()
 
 
-def query(backend_name, **kwargs):
-    from trail.struct import get_current_trial, get_current_project, Project
+def query(backend_name, file_name=None, **kwargs):
+    from trail.struct import get_current_trial, get_current_project
+    from trail.struct import Project, TrialGroup, Trial, Status
 
     """
 
@@ -29,6 +31,13 @@ def query(backend_name, **kwargs):
     if backend_name == 'comet_ml':
         from .cometml import CMLExperiment
         return CMLExperiment(**kwargs)
+
+    if backend_name == 'json':
+        # The database is a simple array of json objects
+        db = load_database(file_name)
+        if len(db.projects) == 1:
+            for project in db.projects:
+                return project
 
     project = get_current_project()
     if project is not None:
