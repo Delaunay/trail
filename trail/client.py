@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 from benchutils.statstream import StatStream
 from trail.utils.throttle import throttled
-from trail.struct import Trial, Project, TrialGroup
+from trail.struct import Trial, Project, TrialGroup, set_current_project, set_current_trial
 
 
 from trail.logger import Logger
@@ -28,6 +28,8 @@ class TrailClient:
         self.project = None
         self.group = None
         self.trial = Trial()
+
+        set_current_trial(self.trial)
 
         self.logger: Logger = Logger(self.trial, build_logger(backend, **kwargs))
         self.eta = EstimatedTime(None, 1)
@@ -52,6 +54,7 @@ class TrailClient:
             project.groups.append(self.group.uid)
             self.group.project_id = self.project.uid
 
+        set_current_project(project)
         project.trials.append(self.trial)
         self.logger.set_project(project)
         return self

@@ -12,7 +12,7 @@ def build_logger(backend_name, **kwargs):
 
 
 def query(backend_name, **kwargs):
-    from trail.client import get_current_experiment
+    from trail.struct import get_current_trial, get_current_project, Project
 
     """
 
@@ -30,4 +30,11 @@ def query(backend_name, **kwargs):
         from .cometml import CMLExperiment
         return CMLExperiment(**kwargs)
 
-    return get_current_experiment()
+    project = get_current_project()
+    if project is not None:
+        return project
+
+    # No defined project make a dummy project
+    project = Project()
+    project.trials = [get_current_trial()]
+    return project

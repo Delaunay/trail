@@ -116,3 +116,29 @@ class Project:
             'trials': [to_json(t, short) for t in self.trials],
             'groups': [to_json(g, short) for g in self.groups]
         }
+
+
+_current_project = None
+_current_trial = None
+
+
+def get_current_project():
+    return _current_project
+
+
+def get_current_trial():
+    return _current_trial
+
+
+def set_current_project(project):
+    global _current_project
+    _current_project = project
+    return _current_project
+
+
+def set_current_trial(trial):
+    global _current_trial
+    _current_trial = trial
+    return _current_trial
+
+
