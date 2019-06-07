@@ -35,7 +35,7 @@ class RingAggregator(Aggregator):
 
     @property
     def val(self):
-        return self.ring.last()
+        return self.ring.to_list()
 
     @staticmethod
     def lazy(n, dtype):
@@ -73,6 +73,22 @@ class StatAggregator(Aggregator):
         return self.stat.avg
 
     @property
+    def max(self):
+        return self.stat.max
+
+    @property
+    def min(self):
+        return self.stat.min
+
+    @property
+    def sd(self):
+        return self.stat.sd
+
+    @property
+    def sum(self):
+        return self.stat.total
+
+    @property
     def total(self):
         return self.stat.total
 
@@ -88,7 +104,7 @@ class TimeSeriesAggregator(Aggregator):
 
     @property
     def val(self):
-        return self.time_series[-1]
+        return self.time_series
 
     @staticmethod
     def lazy():
