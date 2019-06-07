@@ -1,5 +1,5 @@
 from .logger import NoLogLogger
-from track.serialization import load_database
+from track.persistence.local import load_database
 
 
 def build_logger(backend_name, **kwargs):

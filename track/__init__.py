@@ -1,3 +1,3 @@
 
-from .client import TrailClient
+from .client import TrackClient
 from .struct import Project, TrialGroup

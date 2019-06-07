@@ -23,11 +23,14 @@ class Status(Enum):
 @dataclass
 class Trial:
     """ A single training run """
-    uid: Optional[str] = uuid.uuid4()
+    uid: Optional[str] = uuid.uuid4()   # name x version x parameters _ rev_id
+    revision: int = 0                   # if uid is a duplicate rev += 1
+
     name: Optional[str] = None
     description: Optional[str] = None
     tags: Dict[str, any] = field(default_factory=dict)
 
+    version: Optional[str] = None
     group_id: Optional[int] = None
     project_id: Optional[int] = None
 
@@ -51,7 +54,7 @@ class Trial:
 class TrialGroup:
     """ Namespace / Set of trials """
 
-    uid: Optional[str] = None
+    uid: Optional[str] = None           # name x project_id
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)
@@ -67,7 +70,7 @@ class Project:
         children cannot override the tag of a parent
     """
 
-    uid: Optional[str] = None
+    uid: Optional[str] = None           # name
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)

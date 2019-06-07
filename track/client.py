@@ -1,7 +1,7 @@
 import json
 import os
 import inspect
-from typing import Union
+from typing import Union, Callable
 
 from argparse import ArgumentParser, Namespace
 
@@ -13,7 +13,7 @@ from track.struct import Trial, Project, TrialGroup, set_current_project, set_cu
 from track.logger import Logger
 from track.persistence import build_logger
 from track.serialization import to_json
-from track.versioning import get_file_version
+from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
@@ -21,7 +21,7 @@ from track.utils.out import RingOutputDecorator
 from track.utils.log import warning
 
 
-class TrailClient:
+class TrackClient:
     """ An experiment is a set of trials. Trials are """
 
     def __init__(self, backend=options('log.backend.name', default='none'), **kwargs):
@@ -34,13 +34,21 @@ class TrailClient:
         self.logger: Logger = Logger(self.trial, build_logger(backend, **kwargs))
         self.eta = EstimatedTime(None, 1)
 
-        self.top_level_file = None
         # self._system_info()
         # self._version_info()
 
+        self.code = None
         self.stderr = None
         self.stdout = None
         self.batch_printer = None
+        self.add_version_tag()
+
+    def add_version_tag(self, version_fun: Callable[[], str] = None):
+        """ compute the version tag from the function call stack """
+        if version_fun is None:
+            version_fun = default_version_hash
+
+        self.add_tag('version', version_fun())
 
     def new_trial(self, name=None, description=None):
         self.trial = Trial(name=name, description=description)
@@ -109,21 +117,8 @@ class TrailClient:
 
         raise AttributeError(item)
 
-    def _version_info(self):
-        """ inspect the call stack to find where the main is located and use the main to compute the version"""
-        # File hash             # Only works if the main.py was the only file that was modified
-        # Git Hash              # Only if inside a git repository
-        # Git Diff hash         # Only if inside a git repository
-        # Hyper Parameter Hash  # For Trials where only hyper params change
-        # Param Hash            # For experiment
-
-        call_stack = inspect.stack()
-        first_call = call_stack[-1]
-        self.top_level_file = first_call.filename
-        self.current_trial.version = get_file_version(self.top_level_file)
-
-    def _log_code(self):
-        self.current_trial = open(self.top_level_file, 'r').read()
+    def log_code(self):
+        self.code = open(inspect.stack()[-1].filename, 'r').read()
 
     def show_eta(self, step: int, timer: StatStream, msg: str = '',
                  throttle=options('log.print.throttle', None),

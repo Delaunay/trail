@@ -1,10 +1,11 @@
-import git
 import hashlib
-
+import inspect
 from typing import Tuple, List
 
 
 def get_git_version(module) -> Tuple[str, str]:
+    import git
+
     """ This suppose that you did a dev installation of the `module` and that a .git folder is present """
     repo = git.Repo(path=module.__file__, search_parent_directories=True)
 
@@ -33,9 +34,16 @@ def compute_version(files: List[str]) -> str:
                 if not data:
                     break
 
-                sha256.update(data)
+                sha256.update(data.encode('utf-8'))
 
     return sha256.hexdigest()
+
+
+def default_version_hash():
+    """ get the current stack frames and from the file compute the version"""
+    stack = inspect.stack()
+    files = [s.filename for s in stack]
+    return compute_version(files)
 
 
 if __name__ == '__main__':
@@ -43,5 +51,6 @@ if __name__ == '__main__':
 
     import benchutils
 
-    print(get_git_version(benchutils))
+    # print(get_git_version(benchutils))
 
+    print(default_version_hash())

@@ -105,29 +105,12 @@ optimizer = torch.optim.SGD(
     args.momentum
 )
 
-# ----
-# model, optimizer = amp.initialize(
-#     model,
-#     optimizer,
-#     enabled=args.opt_level != 'O0',
-#     cast_model_type=None,
-#     patch_torch_functions=True,
-#     keep_batchnorm_fp32=None,
-#     master_weights=None,
-#     loss_scale="dynamic",
-#     opt_level=args.opt_level
-# )
-
 dataset_ctor = datasets.ImageFolder
 kwargs = {
     'transform': transforms.Compose([
         transforms.RandomResizedCrop(28),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        #transforms.Normalize(
-        #    mean=[0.485, 0.456, 0.406],
-        #    std=[0.229, 0.224, 0.225]
-        #),
     ])
 }
 if args.data == 'mnist':
