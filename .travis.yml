@@ -15,6 +15,6 @@ install:
 script:
   - python -m pytest
   - python -m pytest --cov=track tests/
-  - flake8 track; true
+  - flake8 track
   - pylint track; true
   - codecov
