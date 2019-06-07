@@ -21,6 +21,8 @@ from track.utils.out import RingOutputDecorator
 from track.utils.log import warning
 
 
+# Client has a lot of methods on purpose. This is our unified API
+# pylint: disable=too-many-public-methods
 class TrackClient:
     """ An experiment is a set of trials. Trials are """
 
@@ -173,10 +175,13 @@ class TrackClient:
     def capture_output(self):
         import sys
         do_stderr = sys.stderr is not sys.stdout
-        sys.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', 50))
+
+        self.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', 50))
+        sys.stdout = self.stdout
 
         if do_stderr:
-            sys.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
+            self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
+            sys.stderr = self.stderr
 
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
         return self.logger.finish(exc_type, exc_val, exc_tb)
@@ -189,4 +194,3 @@ class TrackClient:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.logger.__exit__(exc_type, exc_val, exc_tb)
-

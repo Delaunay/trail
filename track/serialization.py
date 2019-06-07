@@ -129,3 +129,5 @@ def from_json(obj: Dict[str, any]) -> any:
             errors=obj['errors'],
             status=obj['status']
         )
+
+    raise NotImplementedError()

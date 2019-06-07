@@ -19,9 +19,8 @@ class Throttler:
         if self.count == 1:
             return self.fun(*args, **kwargs)
 
-        else:
-            self.count %= self.throttle
-            return None
+        self.count %= self.throttle
+        return None
 
 
 class TimeThrottler:
@@ -47,8 +46,8 @@ def throttled(fun: Callable[[A], R], throttle=None, every=None) -> Callable[[A],
         return fun
     elif every is None:
         return Throttler(fun, throttle)
-    else:
-        return TimeThrottler(fun, every)
+
+    return TimeThrottler(fun, every)
 
 
 def is_throttled(fun: Callable[[A], R]) -> bool:

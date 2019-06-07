@@ -21,7 +21,7 @@ class Aggregator:
     @staticmethod
     def lazy(aggregator_t, **kwargs):
         """Lazily instantiate the underlying aggregator """
-        raise lambda: aggregator_t(**kwargs)
+        return lambda: aggregator_t(**kwargs)
 
 
 class RingAggregator(Aggregator):
@@ -135,9 +135,3 @@ class ValueAggregator(Aggregator):
 
     def to_json(self, short=False):
         return self.value
-
-
-def aggregate(agg, value):
-    if agg.logger is None:
-        return agg.append(value)
-    agg.append(value)
