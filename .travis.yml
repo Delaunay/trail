@@ -5,7 +5,14 @@ python:
 
 install:
   - pip install -r requirements.txt
+  - pip install pytest
+  - pip install pytest-cov
+  - pip install pylint
+  - pip install flake8
 
 # command to run tests
 script:
-  - pytest
+  - python -m pytest
+  - python -m pytest --cov=track tests/
+  - flake8 track; true
+  - pylint track; true

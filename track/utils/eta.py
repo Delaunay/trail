@@ -14,6 +14,13 @@ seconds = 1
 minutes = 60
 
 
+def to_list(item):
+    try:
+        return list(item)
+    except Exception:
+        return [item]
+
+
 class EstimatedTime:
     """
         eta = EstimatedTime(timer, (total_epoch, batch_per_epoch))
@@ -24,18 +31,21 @@ class EstimatedTime:
     def __init__(self, stat_timer: StatStream, total: Union[int, List[int]], start: int = 0, name: str = None):
         self.offset = 1 - start
         self.timer = stat_timer
-        self.totals = self.to_list(total)
+        self.totals = to_list(total)
         self.last_step = None
         self.name = name
 
     def set_totals(self, t):
-        self.totals = self.to_list(t)
+        """ set the total number of iteration for each step"""
+        self.totals = to_list(t)
 
     @property
     def total(self):
         return self.count(self.totals)
 
-    def count(self, item, offset=0):
+    @staticmethod
+    def count(item, offset=0):
+        """ return the current iteration it given the completion of each steps """
         total = item
         if isinstance(item, list):
             total = 1
@@ -45,21 +55,18 @@ class EstimatedTime:
 
         return total
 
-    def to_list(self, item):
-        try:
-            return list(item)
-        except:
-            return [item]
-
     def estimated_time(self, step: int, unit: int = minutes):
+        """ estimate the time remaining before the end of the computation """
         self.last_step = step
         return get_time(self.timer) * (self.total - self.count(step, self.offset)) / unit
 
     def elapsed(self, unit: int = minutes):
+        """ return the elapsed time since the class was created"""
         return self.timer.total / unit
 
     def show_eta(self, step, msg='', show=True):
-        step = self.to_list(step)
+        """ print the estimate time until the processing is done """
+        step = to_list(step)
         was_changed = False
 
         diff = len(step) - len(self.totals)
@@ -96,34 +103,3 @@ class EstimatedTime:
         if show:
             return print(msg)
         return msg
-
-
-if __name__ == '__main__':
-    import time
-    from track.chrono import ChronoContext
-    from track.aggregators.aggregator import StatAggregator
-
-    agg = StatAggregator()
-    eta = EstimatedTime(agg, (5, 1))
-
-    print(eta.total)
-
-    for i in range(0, 5):
-        for j in range(0, 10):
-
-            with ChronoContext('time', agg, None, None):
-                time.sleep(1)
-
-        eta.show_eta((i, j))
-
-    agg = StatAggregator()
-    eta = EstimatedTime(agg, 50)
-
-    print(eta.total)
-
-    for i in range(50):
-
-        with ChronoContext('time', agg, None, None):
-            time.sleep(1)
-
-        eta.show_eta(i)

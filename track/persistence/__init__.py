@@ -14,7 +14,7 @@ def build_logger(backend_name, **kwargs):
 
 def query(backend_name, file_name=None, **kwargs):
     from track.struct import get_current_trial, get_current_project
-    from track.struct import Project, TrialGroup, Trial, Status
+    from track.struct import Project
 
     """
 
