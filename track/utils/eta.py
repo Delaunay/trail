@@ -100,8 +100,8 @@ class EstimatedTime:
 
 if __name__ == '__main__':
     import time
-    from trail.chrono import ChronoContext
-    from trail.aggregators.aggregator import StatAggregator
+    from track.chrono import ChronoContext
+    from track.aggregators.aggregator import StatAggregator
 
     agg = StatAggregator()
     eta = EstimatedTime(agg, (5, 1))

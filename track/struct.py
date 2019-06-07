@@ -2,7 +2,6 @@
 
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
-from trail.serialization import to_json
 import uuid
 from enum import Enum
 
@@ -19,7 +18,6 @@ class Status(Enum):
     FinishedGroup = 300  # Not Running because:
     Suspended = 301      # -> was suspended by the user
     Completed = 302      # -> has finished running
-
 
 
 @dataclass

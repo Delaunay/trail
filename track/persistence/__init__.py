@@ -1,5 +1,5 @@
 from .logger import NoLogLogger
-from trail.serialization import load_database
+from track.serialization import load_database
 
 
 def build_logger(backend_name, **kwargs):
@@ -13,8 +13,8 @@ def build_logger(backend_name, **kwargs):
 
 
 def query(backend_name, file_name=None, **kwargs):
-    from trail.struct import get_current_trial, get_current_project
-    from trail.struct import Project, TrialGroup, Trial, Status
+    from track.struct import get_current_trial, get_current_project
+    from track.struct import Project, TrialGroup, Trial, Status
 
     """
 

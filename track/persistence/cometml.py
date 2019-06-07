@@ -1,7 +1,7 @@
-from trail.persistence.logger import LoggerBackend
-from trail.persistence.query import RemoteExperiment, RemoteTrial
-from trail.struct import Status
-from trail.utils.log import warning
+from track.persistence.logger import LoggerBackend
+from track.persistence.query import RemoteExperiment, RemoteTrial
+from track.struct import Status
+from track.utils.log import warning
 
 from collections import defaultdict
 from typing import List, Dict

@@ -1,4 +1,4 @@
-from trail.aggregators.aggregator import Aggregator
+from track.aggregators.aggregator import Aggregator
 from typing import Callable
 import time
 

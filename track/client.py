@@ -6,19 +6,19 @@ from typing import Union
 from argparse import ArgumentParser, Namespace
 
 from benchutils.statstream import StatStream
-from trail.utils.throttle import throttled
-from trail.struct import Trial, Project, TrialGroup, set_current_project, set_current_trial
+from track.utils.throttle import throttled
+from track.struct import Trial, Project, TrialGroup, set_current_project, set_current_trial
 
 
-from trail.logger import Logger
-from trail.persistence import build_logger
-from trail.serialization import to_json
-from trail.versioning import get_file_version
-from trail.utils.eta import EstimatedTime
-from trail.configuration import options
-from trail.utils.out import RingOutputDecorator
+from track.logger import Logger
+from track.persistence import build_logger
+from track.serialization import to_json
+from track.versioning import get_file_version
+from track.utils.eta import EstimatedTime
+from track.configuration import options
+from track.utils.out import RingOutputDecorator
 
-from trail.utils.log import warning
+from track.utils.log import warning
 
 
 class TrailClient:

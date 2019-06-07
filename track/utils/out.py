@@ -1,4 +1,4 @@
-from trail.containers.ring import RingBuffer
+from track.containers.ring import RingBuffer
 
 
 class RingOutputDecorator:

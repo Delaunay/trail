@@ -1,12 +1,12 @@
 import os
 import json
-from trail.utils.log import warning
+from track.utils.log import warning
 
 _config_file = None
 _configuration = None
 
 
-def _look_for_configuration(file_name='trail.config'):
+def _look_for_configuration(file_name='track.config'):
     global _config_file
 
     last = __file__.rfind('/')

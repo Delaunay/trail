@@ -1,18 +1,18 @@
 from argparse import Namespace
 from typing import Callable
 
-from trail.containers.types import float32
-from trail.struct import Trial, Status
+from track.containers.types import float32
+from track.struct import Trial, Status
 
-from trail.utils.signal import SignalHandler
+from track.utils.signal import SignalHandler
 
-from trail.chrono import ChronoContext
-from trail.aggregators.aggregator import Aggregator
-from trail.aggregators.aggregator import RingAggregator
-from trail.aggregators.aggregator import StatAggregator
-from trail.aggregators.aggregator import ValueAggregator
-from trail.aggregators.aggregator import TimeSeriesAggregator
-from trail.persistence.logger import LoggerBackend, NoLogLogger
+from track.chrono import ChronoContext
+from track.aggregators.aggregator import Aggregator
+from track.aggregators.aggregator import RingAggregator
+from track.aggregators.aggregator import StatAggregator
+from track.aggregators.aggregator import ValueAggregator
+from track.aggregators.aggregator import TimeSeriesAggregator
+from track.persistence.logger import LoggerBackend, NoLogLogger
 
 
 ring_aggregator = RingAggregator.lazy(10, float32)
