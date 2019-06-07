@@ -92,7 +92,7 @@ def to_json(k: any, short=False):
 
 def from_json(obj: Dict[str, any]) -> any:
     dtype = obj['dtype']
-    
+
     if dtype == 'project':
         return Project(
             uid=obj['uid'],
@@ -129,4 +129,3 @@ def from_json(obj: Dict[str, any]) -> any:
             errors=obj['errors'],
             status=obj['status']
         )
-

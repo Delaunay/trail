@@ -101,11 +101,11 @@ class TrackClient:
 
     def __getattr__(self, item):
         """ try to use the backend attributes if not available """
-        #def chainer(fun):
-        #    def _chainer(*args, **kwargs):
-        #        fun(*args, **kwargs)
-        #        return self
-        #    return _chainer
+        # def chainer(fun):
+        #     def _chainer(*args, **kwargs):
+        #         fun(*args, **kwargs)
+        #         return self
+        #     return _chainer
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):

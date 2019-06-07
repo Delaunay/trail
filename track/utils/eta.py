@@ -48,7 +48,7 @@ class EstimatedTime:
     def to_list(self, item):
         try:
             return list(item)
-        except:
+        except Exception:
             return [item]
 
     def estimated_time(self, step: int, unit: int = minutes):

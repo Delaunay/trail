@@ -18,7 +18,7 @@ types = {
 
 float16 = 'f'  # 4
 float32 = 'f'  # 4
-float64 = 'd'  # 8   
+float64 = 'd'  # 8
 
 int8  = 'b'    # 1
 int16 = 'h'    # 2

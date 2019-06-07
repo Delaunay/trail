@@ -44,13 +44,3 @@ def default_version_hash():
     stack = inspect.stack()
     files = [s.filename for s in stack]
     return compute_version(files)
-
-
-if __name__ == '__main__':
-    print(type(get_file_version(__file__)))
-
-    import benchutils
-
-    # print(get_git_version(benchutils))
-
-    print(default_version_hash())
