@@ -1,19 +1,17 @@
 import os
 import json
-from track.utils.log import warning
+from track.utils.log import warning, info
 
 _config_file = None
 _configuration = None
 
 
 def _look_for_configuration(file_name='track.config'):
-    global _config_file
-
-    last = __file__.rfind('/')
+    config_file = None
 
     paths = {
-        __file__[:last],  # location of the current file
-        os.getcwd(),      # Current working directory
+        os.path.dirname(os.path.realpath(__file__)),  # location of the current file
+        os.getcwd(),                                  # Current working directory
     }
 
     files = []
@@ -22,22 +20,43 @@ def _look_for_configuration(file_name='track.config'):
 
         if os.path.exists(file):
             files.append(file)
-            _config_file = file
+            config_file = file
 
     if len(files) > 1:
         warning(f'found multiple configuration file: {", ".join(files)}')
+    else:
+        info(f'loading configuration from {config_file}')
+
+    return config_file
 
 
-def _load_config_file():
-    global _config_file
+def _load_config_file(file):
     global _configuration
 
-    if _config_file is None:
+    if file is None:
         warning('No configuration file found')
         return
 
-    with open(_config_file, 'r') as cfile:
+    with open(file, 'r') as cfile:
         _configuration = json.load(cfile)
+
+
+def find_configuration(file=None):
+    global _config_file
+
+    if file is None:
+        file = _look_for_configuration()
+
+    _config_file = file
+    _load_config_file(file)
+
+
+def reset_configuration():
+    global _configuration
+    global _config_file
+
+    _configuration = None
+    _config_file = None
 
 
 # Used to find if a default was provided or not
@@ -51,6 +70,10 @@ none = _DefaultNone()
 
 def options(key, default=none):
     global _configuration
+
+    if _configuration is None:
+        find_configuration()
+
     conf = _configuration
     keys = key.split('.')
     env_key = key.replace('.', '_').upper()
@@ -74,8 +97,3 @@ def options(key, default=none):
         return default
 
     return conf
-
-
-if _configuration is None:
-    _look_for_configuration()
-    _load_config_file()

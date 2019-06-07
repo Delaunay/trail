@@ -79,6 +79,8 @@ class CMLLogger(LoggerBackend):
         if hasattr(self.exp, item):
             return getattr(self.exp, item)
 
+        raise AttributeError(item)
+
 
 class CMLTrial(RemoteTrial):
     def __init__(self, cml_trial: APIExperiment):

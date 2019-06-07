@@ -2,6 +2,7 @@ from typing import Dict, List
 from track.struct import Status
 
 
+# pylint: disable=too-many-public-methods
 class RemoteTrial:
 
     @property
@@ -57,6 +58,7 @@ class RemoteTrial:
         raise NotImplementedError()
 
 
+# pylint: disable=too-many-public-methods
 class RemoteExperiment:
     @property
     def name(self) -> str:
