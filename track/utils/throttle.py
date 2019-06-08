@@ -27,8 +27,8 @@ class TimeThrottler:
     """ Limit how often the function `fun` is called in seconds """
     def __init__(self, fun: Callable[[A], R], every=10):
         self.fun = fun
-        self.last_time = 0
-        self.every = every
+        self.last_time: float = 0
+        self.every: float = every
 
     def __call__(self, *args, **kwargs) -> Optional[R]:
         now = time.time()
