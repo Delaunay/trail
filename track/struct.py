@@ -23,7 +23,11 @@ class Status(Enum):
 @dataclass
 class Trial:
     """ A single training run """
-    uid: Optional[str] = uuid.uuid4()   # name x version x parameters _ rev_id
+    @property
+    def uid(self):
+        return f'{self.trial_hash}_{self.revision}'
+
+    trial_hash: str = None              # name x version x parameters
     revision: int = 0                   # if uid is a duplicate rev += 1
 
     name: Optional[str] = None

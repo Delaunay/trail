@@ -13,9 +13,6 @@ def build_logger(backend_name, **kwargs):
 
 
 def query(backend_name, file_name=None, **kwargs):
-    from track.struct import get_current_trial, get_current_project
-    from track.struct import Project
-
     """
 
     :param backend_name:
@@ -27,6 +24,9 @@ def query(backend_name, file_name=None, **kwargs):
     :return:
         - RemoteExperiment()
     """
+
+    from track.struct import get_current_trial, get_current_project
+    from track.struct import Project
 
     if backend_name == 'comet_ml':
         from .cometml import CMLExperiment
