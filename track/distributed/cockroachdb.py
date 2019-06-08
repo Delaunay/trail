@@ -93,7 +93,7 @@ class CockRoachDB:
                 if proc.poll() is None:
                     os.kill(proc.pid, signal.SIGTERM)
 
-            except Exception as e:
+            except Exception:
                 error(traceback.format_exc())
 
     def start(self, wait=True):
@@ -166,6 +166,6 @@ if __name__ == '__main__':
     db.start(wait=True)
 
     for k, v in db.properties.items():
-       print(k, v)
+        print(k, v)
 
     db.stop()

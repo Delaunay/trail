@@ -19,6 +19,7 @@ class RemoteTrial:
     @property
     def description(self) -> Optional[str]:
         raise NotImplementedError()
+
     @property
     def tags(self) -> Dict[str, any]:
         raise NotImplementedError()
@@ -26,6 +27,7 @@ class RemoteTrial:
     @property
     def version(self) -> Optional[str]:
         raise NotImplementedError()
+
     @property
     def group_id(self) -> Optional[int]:
         raise NotImplementedError()
@@ -66,15 +68,15 @@ class RemoteTrialGroup:
         raise NotImplementedError()
 
     @property
-    def name(self) ->  Optional[str]:
+    def name(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def description(self) ->  Optional[str]:
+    def description(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def tags(self) ->  List[str]:
+    def tags(self) -> List[str]:
         raise NotImplementedError()
 
     @property
@@ -82,7 +84,7 @@ class RemoteTrialGroup:
         raise NotImplementedError()
 
     @property
-    def project_id(self) ->  Optional[int]:
+    def project_id(self) -> Optional[int]:
         raise NotImplementedError()
 
 

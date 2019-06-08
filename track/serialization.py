@@ -115,7 +115,8 @@ def from_json(obj: Dict[str, any]) -> any:
 
     elif dtype == 'trial':
         return Trial(
-            uid=obj['uid'],
+            trial_hash=obj['trial_hash'],
+            revision=obj['revision'],
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],
