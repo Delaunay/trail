@@ -73,3 +73,6 @@ docs/src/reference
 target/
 *.html
 *.json
+
+track/distributed/cockroach/
+
