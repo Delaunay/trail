@@ -18,6 +18,8 @@ class SerializerTrial(SerializerAspect):
         return {
             'dtype': 'trial',
             'uid': to_json(obj.uid),
+            'revision': obj.revision,
+            'trial_hash': obj.trial_hash,
             'name': obj.name,
             'description': obj.description,
             'version': obj.version,
