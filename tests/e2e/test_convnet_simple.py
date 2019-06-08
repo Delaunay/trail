@@ -23,7 +23,7 @@ def test_end_to_end():
 
     parser.add_argument('--workers', '-j', type=int, default=4, help='number of workers/processors to use')
     parser.add_argument('--seed', '-s', type=int, default=0, help='seed to use')
-    parser.add_argument('--epochs', '-e', type=int, default=5, help='number of epochs')
+    parser.add_argument('--epochs', '-e', type=int, default=2, help='number of epochs')
 
     parser.add_argument('--arch', '-a', metavar='ARCH', default='convnet')
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float, metavar='LR')
@@ -47,7 +47,7 @@ def test_end_to_end():
         name='test_group'
     )
 
-    args = trial.get_arguments(parser, show=True)
+    args = trial.get_arguments(parser.parse_args([]), show=True)
     device = trial.get_device()
 
     try:
