@@ -31,7 +31,7 @@ def test_trial_group():
 
 def test_trial():
     p = Trial(
-        uid='0',
+        trial_hash='2',
         name='1',
         description='2',
         tags=['0', '1'],
