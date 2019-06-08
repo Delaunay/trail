@@ -2,6 +2,7 @@ import os
 import time
 import subprocess
 import traceback
+import shutil
 from multiprocessing import Process, Manager
 from track.utils.log import error
 from track.versioning import compute_version
@@ -25,19 +26,28 @@ COCKROACH_BIN = {
 
 class CockRoachDB:
     """ cockroach db is a highly resilient database that allow us to remove the Master in a traditional distributed
-    setup. Because we do not have masters only salve can die and if it is the case they can be easily restarted
+    setup.
 
+    This spawn a cockroach node that will store its data in `location`
     """
 
-    def __init__(self, location, addrs, store, temp_dir, join=None):
+    def __init__(self, location, addrs, join=None, clean_on_exit=True):
+        self.location = location
+        os.makedirs(location, exist_ok=True)
+
+        logs = f'{location}/logs'
+        temp = f'{location}/tmp'
+        external = f'{location}/extern'
+        store = location
 
         self.bin = COCKROACH_BIN.get(os.name)
         self.arguments = [
             'start', '--insecure',
             f'--listen-addr={addrs}',
-            f'--external-io-dir={location}',
+            f'--external-io-dir={external}',
             f'--store={store}',
-            f'--temp-dir={temp_dir}'
+            f'--temp-dir={temp}',
+            f'--log-dir={logs}'
         ]
 
         if join is not None:
@@ -54,7 +64,7 @@ class CockRoachDB:
         self.manager: Manager = Manager()
         self.properties = self.manager.dict()
         self.properties['running'] = False
-
+        self.clean_on_exit = clean_on_exit
         self._process: Process = None
 
     def _start(self, properties):
@@ -86,9 +96,14 @@ class CockRoachDB:
             except Exception as e:
                 error(traceback.format_exc())
 
-    def start(self):
+    def start(self, wait=True):
         self._process = Process(target=self._start, args=(self.properties,))
         self._process.start()
+
+        # wait for all the properties to be populated
+        if wait:
+            while self.properties.get('nodeID') is None:
+                time.sleep(0.01)
 
     def stop(self):
         self.properties['running'] = False
@@ -98,6 +113,9 @@ class CockRoachDB:
         # you cant just terminate Popen in the case of cockroachdb
         # you need to kill it with fire
         os.kill(self.properties['pid'], signal.SIGTERM)
+
+        if self.clean_on_exit:
+            shutil.rmtree(self.location)
 
     def __enter__(self):
         self.start()
@@ -117,13 +135,37 @@ class CockRoachDB:
         except Exception as e:
             print(e, line, end='\n')
 
+    # properties that are populated once the server has started
+    @property
+    def node_id(self):
+        return self.properties.get('nodeID')
 
-db = CockRoachDB()
-db.start()
+    @property
+    def status(self):
+        return self.properties.get('status')
 
-time.sleep(20)
-for k, v in db.properties.items():
-   print(k, v)
+    @property
+    def sql(self):
+        return self.properties.get('sql')
+
+    @property
+    def client_flags(self):
+        return self.properties.get('client flags')
+
+    @property
+    def webui(self):
+        return self.properties.get('webui')
+
+    @property
+    def build(self):
+        return self.properties.get('build')
 
 
-db.stop()
+if __name__ == '__main__':
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost')
+    db.start(wait=True)
+
+    for k, v in db.properties.items():
+       print(k, v)
+
+    db.stop()
