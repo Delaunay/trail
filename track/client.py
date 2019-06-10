@@ -45,12 +45,15 @@ class TrackClient:
         self.batch_printer = None
         self.add_version_tag()
 
-    def add_version_tag(self, version_fun: Callable[[], str] = None):
+    def add_version_tag(self, version=None, version_fun: Callable[[], str] = None):
         """ compute the version tag from the function call stack """
         if version_fun is None:
             version_fun = default_version_hash
 
-        self.add_tag('version', version_fun())
+        if version is None:
+            self.trial.version = version_fun()
+        else:
+            self.trial.version = version
 
     def new_trial(self, name=None, description=None):
         self.trial = Trial(name=name, description=description)

@@ -8,16 +8,18 @@ class ChronoContext:
         sync is a function that can be set to make the timer wait before ending.
         This is useful when timing async calls like cuda calls
     """
-    def __init__(self, name: str, acc: Aggregator, stat_callback: Callable = None, end_callback: Callable = None):
+
+    def __init__(self, name: str, acc: Aggregator, start_callback: Callable = None, end_callback: Callable = None):
         self.name = name
         self.accumulator = acc
         self.start = 0
         self.end = 0
-        self.start_callback = stat_callback
+
+        self.start_callback = start_callback
         self.end_callback = end_callback
 
-        if stat_callback is None:
-            self.stat_callback = lambda: None
+        if start_callback is None:
+            self.start_callback = lambda: None
 
         if end_callback is None:
             self.end_callback = lambda: None

@@ -27,14 +27,14 @@ def compute_version(files: List[str]) -> str:
     sha256 = hashlib.sha256()
 
     for file in files:
-        with open(file, 'r') as code:
+        with open(file, 'rb') as code:
             while True:
                 data = code.read(BUF_SIZE)
 
                 if not data:
                     break
 
-                sha256.update(data.encode('utf-8'))
+                sha256.update(data)
 
     return sha256.hexdigest()
 

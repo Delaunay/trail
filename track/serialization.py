@@ -18,6 +18,8 @@ class SerializerTrial(SerializerAspect):
         return {
             'dtype': 'trial',
             'uid': to_json(obj.uid),
+            'revision': obj.revision,
+            'trial_hash': obj.trial_hash,
             'name': obj.name,
             'description': obj.description,
             'version': obj.version,
@@ -115,7 +117,8 @@ def from_json(obj: Dict[str, any]) -> any:
 
     elif dtype == 'trial':
         return Trial(
-            uid=obj['uid'],
+            trial_hash=obj['trial_hash'],
+            revision=obj['revision'],
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],

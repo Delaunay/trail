@@ -1,48 +1,51 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from track.struct import Status
 
 
 # pylint: disable=too-many-public-methods
 class RemoteTrial:
-
     @property
-    def system_metrics(self) -> Dict[str, any]:
+    def trial_hash(self) -> str:
         raise NotImplementedError()
 
     @property
-    def graph_definition(self) -> str:
+    def revision(self) -> int:
         raise NotImplementedError()
 
     @property
-    def args(self) -> Dict[str, any]:
+    def name(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def name(self) -> str:
+    def description(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def version(self) -> str:
+    def tags(self) -> Dict[str, any]:
         raise NotImplementedError()
 
     @property
-    def trial_uid(self) -> str:
+    def version(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def code(self) -> str:
+    def group_id(self) -> Optional[int]:
         raise NotImplementedError()
 
     @property
-    def source_file(self) -> str:
+    def project_id(self) -> Optional[int]:
         raise NotImplementedError()
 
     @property
-    def status(self) -> Status:
+    def parameters(self) -> Dict[str, any]:
         raise NotImplementedError()
 
     @property
-    def errors(self) -> List[any]:
+    def metadata(self) -> Dict[str, any]:
+        raise NotImplementedError()
+
+    @property
+    def metrics(self) -> Dict[str, any]:
         raise NotImplementedError()
 
     @property
@@ -50,42 +53,61 @@ class RemoteTrial:
         raise NotImplementedError()
 
     @property
-    def metrics(self) -> Dict[any, Dict[any, any]]:
+    def status(self) -> Optional[Status]:
         raise NotImplementedError()
 
     @property
-    def others(self) -> Dict[any, Dict[any, any]]:
+    def errors(self) -> List[str]:
         raise NotImplementedError()
 
 
 # pylint: disable=too-many-public-methods
-class RemoteExperiment:
+class RemoteTrialGroup:
     @property
-    def name(self) -> str:
+    def uid(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def description(self) -> str:
+    def name(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def models(self) -> List[any]:
+    def description(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def data_set(self) -> any:
+    def tags(self) -> List[str]:
         raise NotImplementedError()
 
     @property
-    def optimizers(self) -> any:
+    def trials(self) -> List[RemoteTrial]:
         raise NotImplementedError()
 
     @property
-    def hyper_parameters(self) -> List[str]:
+    def project_id(self) -> Optional[int]:
+        raise NotImplementedError()
+
+
+# pylint: disable=too-many-public-methods
+class RemoteProject:
+    @property
+    def uid(self) -> Optional[str]:
         raise NotImplementedError()
 
     @property
-    def parameters(self) -> List[str]:
+    def name(self) -> Optional[str]:
+        raise NotImplementedError()
+
+    @property
+    def description(self) -> Optional[str]:
+        raise NotImplementedError()
+
+    @property
+    def tags(self) -> List[str]:
+        raise NotImplementedError()
+
+    @property
+    def groups(self) -> List[RemoteTrialGroup]:
         raise NotImplementedError()
 
     @property

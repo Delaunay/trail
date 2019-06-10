@@ -1,5 +1,5 @@
 from track.persistence.logger import LoggerBackend
-from track.persistence.query import RemoteExperiment, RemoteTrial
+from track.persistence.query import RemoteProject, RemoteTrial
 from track.struct import Status
 from track.utils.log import warning
 
@@ -118,7 +118,7 @@ class CMLTrial(RemoteTrial):
         return Status(self._get_other('status_code'))
 
 
-class CMLExperiment(RemoteExperiment):
+class CMLExperiment(RemoteProject):
     def __init__(self, workspace, project):
         self.workspace = workspace
         self.project = project

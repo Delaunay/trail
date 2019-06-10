@@ -42,7 +42,7 @@ class Logger(LoggerBackend):
         acc = ValueAggregator()
         self.depth = 0
         self.trial.chronos['runtime'] = acc
-        self.parent_chrono = ChronoContext('runtime', acc, None, self)
+        self.parent_chrono = ChronoContext('runtime', acc)
         self.start()
         self.signal_handler = LogSignalHandler(self)
 
@@ -104,14 +104,16 @@ class Logger(LoggerBackend):
 
         self.backend.log_metadata(**kwargs)
 
-    def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator, sync=None):
+    def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator,
+               start_callback=None,
+               end_callback=None):
         """ create a chrono context to time the runtime of the code inside it"""
         agg = self.trial.chronos.get(name)
         if agg is None:
             agg = aggregator()
             self.trial.chronos[name] = agg
 
-        return ChronoContext(name, agg, sync, self.parent_chrono)
+        return ChronoContext(name, agg, start_callback=start_callback, end_callback=end_callback)
 
     # Context API for starting the top level chrono
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
@@ -120,12 +122,15 @@ class Logger(LoggerBackend):
             metrics[f'chrono_{k}'] = v.to_json()
 
         self.backend.log_metadata(**metrics)
+
         if exc_type is not None:
             self.set_status(Status.Exception, error=exc_type)
         else:
             self.set_status(Status.Completed)
 
         self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
+        if exc_type is not None:
+            raise exc_type
 
     def start(self):
         self.set_status(Status.Running)
