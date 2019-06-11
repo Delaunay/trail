@@ -39,6 +39,23 @@ def compute_version(files: List[str]) -> str:
     return sha256.hexdigest()
 
 
+def compute_hash(*args, **kwargs):
+    def encode(item):
+        if isinstance(item, str):
+            item = item.encode('utf8')
+        return item
+
+    sha256 = hashlib.sha256()
+    for arg in args:
+        sha256.update(encode(arg))
+
+    for k, v in kwargs.items():
+        sha256.update(encode(k))
+        sha256.update(encode(v))
+
+    return sha256.hexdigest()
+
+
 def default_version_hash():
     """ get the current stack frames and from the file compute the version"""
     stack = inspect.stack()

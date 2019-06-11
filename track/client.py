@@ -24,7 +24,7 @@ from track.utils.log import warning
 # Client has a lot of methods on purpose. This is our unified API
 # pylint: disable=too-many-public-methods
 class TrackClient:
-    """ An experiment is a set of trials. Trials are """
+    """ TrackClient. A client tracks a single Trial being ran"""
 
     def __init__(self, backend=options('log.backend.name', default='none'), **kwargs):
         self.project = None
@@ -45,7 +45,14 @@ class TrackClient:
         self.batch_printer = None
         self.add_version_tag()
 
-    def add_version_tag(self, version=None, version_fun: Callable[[], str] = None):
+        self.data_store = None
+
+    def set_store(self, store):
+        """ local store: file://file.json"""
+
+        return self
+
+    def set_version(self, version=None, version_fun: Callable[[], str] = None):
         """ compute the version tag from the function call stack """
         if version_fun is None:
             version_fun = default_version_hash
@@ -54,9 +61,11 @@ class TrackClient:
             self.trial.version = version_fun()
         else:
             self.trial.version = version
+        return self
 
-    def new_trial(self, name=None, description=None):
-        self.trial = Trial(name=name, description=description)
+    def new_trial(self, name=None, description=None, params=None):
+        self.trial = Trial(name=name, description=description, parameters=params)
+        return self
 
     def set_project(self, project=None, name=None, tags=None, description=None):
         if project is None:
@@ -124,6 +133,7 @@ class TrackClient:
 
     def log_code(self):
         self.code = open(inspect.stack()[-1].filename, 'r').read()
+        return self
 
     def show_eta(self, step: int, timer: StatStream, msg: str = '',
                  throttle=options('log.print.throttle', None),
@@ -137,11 +147,13 @@ class TrackClient:
 
         if not no_print:
             self.batch_printer(step, msg)
+        return self
 
     def report(self, short=True):
         """ print a digest of the logged metrics """
         self.logger.finish()
         print(json.dumps(to_json(self.trial, short), indent=2))
+        return self
 
     def save(self, file_name=options('log.save', default=None)):
         """ saved logged metrics into a json file """
@@ -161,6 +173,7 @@ class TrackClient:
 
         with open(file_name, 'w') as out:
             json.dump(initial_data, out, indent=2)
+        return self
 
     @staticmethod
     def get_device():
@@ -174,6 +187,7 @@ class TrackClient:
     # -- Getter Setter
     def set_eta_total(self, t):
         self.eta.set_totals(t)
+        return self
 
     def capture_output(self):
         import sys
@@ -185,6 +199,7 @@ class TrackClient:
         if do_stderr:
             self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
             sys.stderr = self.stderr
+        return self
 
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
         return self.logger.finish(exc_type, exc_val, exc_tb)

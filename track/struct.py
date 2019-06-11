@@ -3,6 +3,7 @@
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from track.versioning import compute_hash
 
 
 class Status(Enum):
@@ -23,12 +24,14 @@ class Status(Enum):
 class Trial:
     """ A single training run """
     @property
-    def uid(self):
-        return f'{self.trial_hash}_{self.revision}'
+    def uid(self) -> str:
+        return f'{self.hash}_{self.revision}'
 
-    trial_hash: str = None              # name x version x parameters
+    @property
+    def hash(self) -> str:
+        return compute_hash(self.name, self.version, **self.parameters)
+
     revision: int = 0                   # if uid is a duplicate rev += 1
-
     name: Optional[str] = None
     description: Optional[str] = None
     tags: Dict[str, any] = field(default_factory=dict)
@@ -57,7 +60,10 @@ class Trial:
 class TrialGroup:
     """ Namespace / Set of trials """
 
-    uid: Optional[str] = None           # name x project_id
+    @property
+    def uid(self) -> str:
+        return compute_hash(self.name, self.project_id)
+
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)
@@ -72,8 +78,10 @@ class Project:
         If projects define tags than all children inherit those tags.
         children cannot override the tag of a parent
     """
+    @property
+    def uid(self) -> str:
+        return self.name
 
-    uid: Optional[str] = None           # name
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)

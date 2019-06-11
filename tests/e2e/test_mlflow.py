@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import argparse
 
 sys.stderr = sys.stdout
+import mlflow
 
 
 def test_end_to_end():
@@ -34,18 +35,12 @@ def test_end_to_end():
 
     # ----
 
-    trial = TrackClient()
-    trial.add_tags(workers=8, hpo='byopt')
-    trial.set_project(
-        name='ConvnetTest',
-        description='Trail test example'
-    )
-    trial.set_group(
-        name='test_group'
-    )
+    from mlflow.tracking import set_tracking_uri
 
-    args = trial.get_arguments(parser.parse_args([]), show=True)
-    device = trial.get_device()
+    # set_tracking_uri('file:/data')
+    exp_id = mlflow.set_experiment('lulz')
+    args = parser.parse_args([])
+    device = torch.device('cpu')
 
     try:
         import torch.backends.cudnn as cudnn
@@ -98,29 +93,12 @@ def test_end_to_end():
         args.momentum
     )
 
-    # ----
-    # model, optimizer = amp.initialize(
-    #     model,
-    #     optimizer,
-    #     enabled=args.opt_level != 'O0',
-    #     cast_model_type=None,
-    #     patch_torch_functions=True,
-    #     keep_batchnorm_fp32=None,
-    #     master_weights=None,
-    #     loss_scale="dynamic",
-    #     opt_level=args.opt_level
-    # )
-
     dataset_ctor = datasets.ImageFolder
     kwargs = {
         'transform': transforms.Compose([
             transforms.RandomResizedCrop(28),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            #transforms.Normalize(
-            #    mean=[0.485, 0.456, 0.406],
-            #    std=[0.229, 0.224, 0.225]
-            #),
         ])
     }
     if args.data == 'mnist':
@@ -151,51 +129,46 @@ def test_end_to_end():
         except StopIteration:
             return None
 
-    trial.set_eta_total((args.epochs, len(train_loader)))
+    with mlflow.start_run() as run:
+        run.log_params(vars(args))
+        run.set_tag('key', 'value')
 
-    with trial:
         model.train()
         for epoch in range(args.epochs):
             batch_iter = iter(train_loader)
 
-            with trial.chrono('epoch_time') as epoch_time:
-                batch_id = 0
-                epoch_loss = 0
-                while True:
-                    with trial.chrono('batch_time') as batch_time:
+            batch_id = 0
+            epoch_loss = 0
+            while True:
+                batch = next_batch(batch_iter)
 
-                        with trial.chrono('batch_wait'):
-                            batch = next_batch(batch_iter)
+                if batch is None:
+                    break
 
-                        if batch is None:
-                            break
+                input, target = batch
 
-                        with trial.chrono('batch_compute'):
-                            input, target = batch
+                output = model(input)
+                loss = criterion(output, target)
 
-                            output = model(input)
-                            loss = criterion(output, target)
+                epoch_loss += loss.item()
+                run.log_metrics(step=(epoch, batch_id), epoch_loss=loss.item())
+                # trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
-                            epoch_loss += loss.item()
-                            # trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
+                # compute gradient and do SGD step
+                optimizer.zero_grad()
 
-                            # compute gradient and do SGD step
-                            optimizer.zero_grad()
+                # with amp.scale_loss(loss, optimizer) as scaled_loss:
+                #    scaled_loss.backward()
+                loss.backward()
 
-                            # with amp.scale_loss(loss, optimizer) as scaled_loss:
-                            #    scaled_loss.backward()
-                            loss.backward()
+                optimizer.step()
+                batch_id += 1
 
-                            optimizer.step()
-                            batch_id += 1
-                    # ---
-                    epoch_loss /= len(train_loader)
-                    trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
-                    trial.show_eta((epoch, batch_id), batch_time, throttle=100)
                 # ---
-
-    trial.report()
-    trial.save()
+            epoch_loss /= len(train_loader)
+            run.log_metrics(step=epoch, epoch_loss=epoch_loss)
+                # ---
+    mlflow.end_run(status='FINISHED')
 
 
 if __name__ == '__main__':
