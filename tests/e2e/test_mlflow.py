@@ -13,9 +13,16 @@ import argparse
 
 sys.stderr = sys.stdout
 import mlflow
+from pytest import skip
+
+DISABLED = True
 
 
+@skip(reason='Not Ready')
 def test_end_to_end():
+    if DISABLED:
+        return
+
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
     parser.add_argument('--batch-size', '-b', type=int, help='batch size', default=32)

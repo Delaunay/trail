@@ -19,7 +19,7 @@ class SerializerTrial(SerializerAspect):
             'dtype': 'trial',
             'uid': to_json(obj.uid),
             'revision': obj.revision,
-            'trial_hash': obj.trial_hash,
+            'hash': obj.hash,
             'name': obj.name,
             'description': obj.description,
             'version': obj.version,
@@ -97,7 +97,7 @@ def from_json(obj: Dict[str, any]) -> any:
 
     if dtype == 'project':
         return Project(
-            uid=obj['uid'],
+            _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],
@@ -107,7 +107,7 @@ def from_json(obj: Dict[str, any]) -> any:
 
     elif dtype == 'trial_group':
         return TrialGroup(
-            uid=obj['uid'],
+            _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],
@@ -117,7 +117,7 @@ def from_json(obj: Dict[str, any]) -> any:
 
     elif dtype == 'trial':
         return Trial(
-            trial_hash=obj['trial_hash'],
+            _hash=obj['hash'],
             revision=obj['revision'],
             name=obj['name'],
             description=obj['description'],

@@ -43,7 +43,7 @@ class TrackClient:
         self.stderr = None
         self.stdout = None
         self.batch_printer = None
-        self.add_version_tag()
+        self.set_version()
 
         self.data_store = None
 

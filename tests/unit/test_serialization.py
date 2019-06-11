@@ -4,11 +4,10 @@ from track.serialization import to_json, from_json
 
 def test_project():
     p = Project(
-        uid='0',
         name='1',
         description='2',
         tags=['0', '1'],
-        groups=[TrialGroup()],
+        groups=[TrialGroup(name='TG', project_id='1')],
         trials=[]
     )
 
@@ -18,11 +17,11 @@ def test_project():
 
 def test_trial_group():
     p = TrialGroup(
-        uid='0',
         name='1',
         description='2',
         tags=['0', '1'],
-        trials=[]
+        trials=[],
+        project_id=1
     )
 
     ps = from_json(to_json(p))
@@ -31,11 +30,10 @@ def test_trial_group():
 
 def test_trial():
     p = Trial(
-        trial_hash='2',
-        name='1',
+        name='name',
         description='2',
         tags=['0', '1'],
-        version='01',
+        version='version',
         group_id='0',
         project_id='1',
         parameters=dict(a=1, b=2),

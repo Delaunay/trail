@@ -27,10 +27,16 @@ class Trial:
     def uid(self) -> str:
         return f'{self.hash}_{self.revision}'
 
-    @property
-    def hash(self) -> str:
+    def compute_hash(self) -> str:
         return compute_hash(self.name, self.version, **self.parameters)
 
+    @property
+    def hash(self):
+        if self._hash is None:
+            self._hash = self.compute_hash()
+        return self._hash
+
+    _hash: str = None
     revision: int = 0                   # if uid is a duplicate rev += 1
     name: Optional[str] = None
     description: Optional[str] = None
@@ -60,10 +66,19 @@ class Trial:
 class TrialGroup:
     """ Namespace / Set of trials """
 
-    @property
-    def uid(self) -> str:
+    def compute_uid(self) -> str:
+        assert self.project_id is not None, f'Trial Group (name: {self.name}) needs to be associated with a project'
+        assert self.name is not None, f'Trial Group for (project: {self.project_id}) has no name!'
+
         return compute_hash(self.name, self.project_id)
 
+    @property
+    def uid(self):
+        if self._uid is None:
+            self._uid = self.compute_uid()
+        return self._uid
+
+    _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)
@@ -78,10 +93,18 @@ class Project:
         If projects define tags than all children inherit those tags.
         children cannot override the tag of a parent
     """
-    @property
-    def uid(self) -> str:
+    def compute_uid(self) -> str:
+        assert self.name is not None, f'Project need a name!'
+
         return self.name
 
+    @property
+    def uid(self):
+        if self._uid is None:
+            self._uid = self.compute_uid()
+        return self._uid
+
+    _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
     tags: List[str] = field(default_factory=list)

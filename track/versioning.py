@@ -43,13 +43,22 @@ def compute_hash(*args, **kwargs):
     def encode(item):
         if isinstance(item, str):
             item = item.encode('utf8')
+        else:
+            item = bytes([item])
+
         return item
 
     sha256 = hashlib.sha256()
     for arg in args:
+        if arg is None:
+            continue
+
         sha256.update(encode(arg))
 
     for k, v in kwargs.items():
+        if v is None:
+            continue
+
         sha256.update(encode(k))
         sha256.update(encode(v))
 
