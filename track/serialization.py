@@ -47,7 +47,7 @@ class SerializerTrialGroup(SerializerAspect):
             'description': obj.description,
             'tags': obj.tags,
             'project_id': obj.project_id,
-            'trials': [to_json(t.uid) for t in obj.trials]
+            'trials': obj.trials
         }
 
 

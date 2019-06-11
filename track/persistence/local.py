@@ -1,15 +1,17 @@
+import os
+import json
 from dataclasses import dataclass, field
 from typing import Dict, Set
 from uuid import UUID
 
-import json
 from track.utils.log import error
 from track.struct import Project, Trial, TrialGroup
 from track.serialization import from_json
+from track.persistence.storage import Storage
 
 
 @dataclass
-class LocalDatabase:
+class LocalStorage(Storage):
     # Main storage
     objects: Dict[UUID, any] = field(default_factory=dict)
     # Indexes
@@ -61,6 +63,9 @@ def merge_objects(o1, o2):
 
 
 def load_database(json_name):
+    if not os.path.exists(json_name):
+        return LocalStorage()
+
     with open(json_name, 'r') as file:
         objects = json.load(file)
 
@@ -96,7 +101,7 @@ def load_database(json_name):
             if obj.name is not None:
                 group_names[obj.name] = obj.uid
 
-    return LocalDatabase(objects, projects, groups, trials, project_names, group_names, trial_names)
+    return LocalStorage(db, projects, groups, trials, project_names, group_names, trial_names)
 
 
 class DatabaseManager:

@@ -34,15 +34,13 @@ def test_end_to_end():
 
     # ----
 
-    trial = TrackClient()
+    trial = TrackClient(backend='json-local')
     trial.add_tags(workers=8, hpo='byopt')
     trial.set_project(
         name='ConvnetTest',
         description='Trail test example'
     )
-    trial.set_group(
-        name='test_group'
-    )
+    trial.set_group(name='test_group')
 
     args = trial.get_arguments(parser.parse_args([]), show=True)
     device = trial.get_device()

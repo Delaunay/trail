@@ -1,7 +1,7 @@
 import json
 import os
 import inspect
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 
 from argparse import ArgumentParser, Namespace
 
@@ -9,15 +9,14 @@ from benchutils.statstream import StatStream
 from track.utils.throttle import throttled
 from track.struct import Trial, Project, TrialGroup, set_current_project, set_current_trial
 
-
+from track.persistence.storage import Storage
 from track.logger import Logger
-from track.persistence import build_logger
+from track.persistence import build_logger, load_storage
 from track.serialization import to_json
 from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
-
 from track.utils.log import warning
 
 
@@ -26,12 +25,17 @@ from track.utils.log import warning
 class TrackClient:
     """ TrackClient. A client tracks a single Trial being ran"""
 
-    def __init__(self, backend=options('log.backend.name', default='none'), **kwargs):
+    def __init__(self, backend=options('log.backend.name', default='none'),
+                       storage=options('log.storage.protocol', default='file://${project}.json'), **kwargs):
+
         self.project = None
         self.group = None
         self.trial = Trial()
 
         set_current_trial(self.trial)
+
+        self.logger_backend = backend
+        self.storage_protocol = storage
 
         self.logger: Logger = Logger(self.trial, build_logger(backend, **kwargs))
         self.eta = EstimatedTime(None, 1)
@@ -44,12 +48,11 @@ class TrackClient:
         self.stdout = None
         self.batch_printer = None
         self.set_version()
-
-        self.data_store = None
+        self.data_store: Optional[Storage] = None
 
     def set_store(self, store):
         """ local store: file://file.json"""
-
+        self.data_store = load_storage(store.replace('${project}', self.project.name))
         return self
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
@@ -63,25 +66,24 @@ class TrackClient:
             self.trial.version = version
         return self
 
-    def new_trial(self, name=None, description=None, params=None):
-        self.trial = Trial(name=name, description=description, parameters=params)
-        return self
+    def get_project(self, project=None, name=None, tags=None, description=None):
+        self.set_store(storage)
+        self.data_store.project_names.get(name)
 
-    def set_project(self, project=None, name=None, tags=None, description=None):
         if project is None:
             project = Project(name=name, tags=tags, description=description)
             self.project = project
 
         if self.group is not None:
-            project.groups.append(self.group.uid)
+            project.groups.append(self.group)
             self.group.project_id = self.project.uid
 
         set_current_project(project)
         project.trials.append(self.trial)
         self.logger.set_project(project)
-        return self
+        return project
 
-    def set_group(self, group=None, name=None, tags=None, description=None):
+    def get_group(self, group=None, name=None, tags=None, description=None):
         if self.project is None:
             raise RuntimeError('Project needs to be set to define a group')
 
@@ -91,11 +93,11 @@ class TrackClient:
 
         if self.project is not None:
             group.project_id = self.project.uid
-            self.project.groups.append(self.group.uid)
+            self.project.groups.append(self.group)
 
         group.trials.append(self.trial.uid)
         self.logger.set_group(group)
-        return self
+        return group
 
     def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
         """ Store the arguments that was used to run the trial.  """

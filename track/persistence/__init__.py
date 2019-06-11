@@ -1,15 +1,62 @@
 from .logger import NoLogLogger
+from track.utils.log import warning, info
 from track.persistence.local import load_database
 
 
-def build_logger(backend_name, **kwargs):
+def make_comet_ml(**kwargs):
     # import inside the if so users do not have to install useless packages
-    if backend_name == 'comet_ml':
-        from .cometml import CMLLogger
+    from .cometml import CMLLogger
+    return CMLLogger(**kwargs)
 
-        return CMLLogger(**kwargs)
 
-    return NoLogLogger()
+_logger_backend = {
+    '__default__': lambda **kwargs: NoLogLogger(),
+    'comet_ml': make_comet_ml,
+    'local': lambda **kwargs: NoLogLogger(),
+}
+
+_protocols = {
+    '__default__': load_database,
+    'file': load_database,
+    'cometml': None,
+}
+
+
+def build_logger(backend_name, **kwargs):
+    log = _logger_backend.get(backend_name)
+
+    if log is None:
+        warning(f'Logger (backend: {backend_name}) was not found!')
+        log = _logger_backend.get('__default__')
+
+    return log(**kwargs)
+
+
+def register_logger_backend(name, ctor):
+    info(f'Registering logger backend {name}')
+    _logger_backend[name] = ctor
+
+
+class ProtocolNotImplemented(BaseException):
+    def __init__(self, msg, *args, **kwargs):
+        super(self, ProtocolNotImplemented).__init__(*args, **kwargs)
+        self.msg = msg
+
+
+def register_storage_protocol(name, fun):
+    info(f'Registering protocol {name}')
+    _protocols[name] = fun
+
+
+def load_storage(backend):
+    protocol_name, address = backend.split('://', maxsplit=1)
+
+    proto = _protocols.get(protocol_name)
+    if proto is None:
+        warning(f'Storage protocol (protocol: {protocol_name}) was not found!')
+        proto = _protocols.get('__default__')
+
+    return proto(address)
 
 
 def query(backend_name, file_name=None, **kwargs):

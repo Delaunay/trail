@@ -44,7 +44,7 @@ def test_end_to_end():
 
     from mlflow.tracking import set_tracking_uri
 
-    # set_tracking_uri('file:/data')
+    set_tracking_uri('file://trash')
     exp_id = mlflow.set_experiment('lulz')
     args = parser.parse_args([])
     device = torch.device('cpu')

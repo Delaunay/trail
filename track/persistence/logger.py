@@ -62,6 +62,8 @@ class LoggerBackend:
 
 
 class NoLogLogger(LoggerBackend):
+    def __init__(self, *args, **kwargs):
+        pass
 
     def log_argument(self, k, v):
         pass
