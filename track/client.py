@@ -50,9 +50,10 @@ class TrackClient:
         self.set_version()
         self.data_store: Optional[Storage] = None
 
-    def set_store(self, store):
+    def set_store(self, store, force=False):
         """ local store: file://file.json"""
-        self.data_store = load_storage(store.replace('${project}', self.project.name))
+        if self.data_store is None or force:
+            self.data_store = load_storage(store.replace('${project}', self.project.name))
         return self
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
@@ -66,36 +67,46 @@ class TrackClient:
             self.trial.version = version
         return self
 
-    def get_project(self, project=None, name=None, tags=None, description=None):
-        self.set_store(storage)
-        self.data_store.project_names.get(name)
+    def set_project(self, project=None, name=None, tags=None, description=None):
+        self.set_store(self.storage_protocol)
+
+        # Check if the storage for the project
+        if name is not None:
+            project_id = self.data_store.project_names.get(name)
+
+            if project_id is not None:
+                # info('Found project from storage')
+                project = self.data_store.objects.get(project_id)
+                assert project is not None, \
+                    f'Project (id: {project_id}) was found in index but missing in the data table'
 
         if project is None:
+            assert name is not None, 'Project need to have a unique name'
+            # info('Creating a new project')
             project = Project(name=name, tags=tags, description=description)
-            self.project = project
-
-        if self.group is not None:
-            project.groups.append(self.group)
-            self.group.project_id = self.project.uid
+            self.data_store.insert_project(project)
 
         set_current_project(project)
-        project.trials.append(self.trial)
+        self.project = project
+        self.project.trials.append(self.trial)
         self.logger.set_project(project)
         return project
 
-    def get_group(self, group=None, name=None, tags=None, description=None):
+    def set_group(self, group=None, name=None, tags=None, description=None):
         if self.project is None:
             raise RuntimeError('Project needs to be set to define a group')
 
+        # look for the group in the project
+        for gid in self.project.groups:
+            g = self.data_store.objects[gid]
+            if g.name == name:
+                group = g
+
         if group is None:
             group = TrialGroup(name=name, tags=tags, description=description)
-            self.group = group
 
-        if self.project is not None:
-            group.project_id = self.project.uid
-            self.project.groups.append(self.group)
-
-        group.trials.append(self.trial.uid)
+        self.group = group
+        self.group.trials.append(self.trial.uid)
         self.logger.set_group(group)
         return group
 
