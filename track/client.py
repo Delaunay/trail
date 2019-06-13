@@ -7,7 +7,7 @@ from argparse import ArgumentParser, Namespace
 
 from benchutils.statstream import StatStream
 from track.utils.throttle import throttled
-from track.struct import Trial, Project, TrialGroup, set_current_project, set_current_trial
+from track.structure import Trial, Project, TrialGroup, set_current_project, set_current_trial
 
 from track.persistence.storage import Storage
 from track.logger import Logger
@@ -50,10 +50,16 @@ class TrackClient:
         self.set_version()
         self.data_store: Optional[Storage] = None
 
-    def set_store(self, store, force=False):
+    def set_store(self, store, name=None, force=False):
         """ local store: file://file.json"""
+        if name is None and self.project is not None:
+            name = self.project.name
+
+        if name is not None:
+            store = store.replace('${project}', name)
+
         if self.data_store is None or force:
-            self.data_store = load_storage(store.replace('${project}', self.project.name))
+            self.data_store = load_storage(store)
         return self
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
@@ -68,7 +74,7 @@ class TrackClient:
         return self
 
     def set_project(self, project=None, name=None, tags=None, description=None):
-        self.set_store(self.storage_protocol)
+        self.set_store(self.storage_protocol, name)
 
         # Check if the storage for the project
         if name is not None:
@@ -86,10 +92,11 @@ class TrackClient:
             project = Project(name=name, tags=tags, description=description)
             self.data_store.insert_project(project)
 
+        self.trial.project_id = project.uid
         set_current_project(project)
         self.project = project
-        self.project.trials.append(self.trial)
         self.logger.set_project(project)
+        self.data_store.insert_trial(self.trial)
         return project
 
     def set_group(self, group=None, name=None, tags=None, description=None):
@@ -104,6 +111,9 @@ class TrackClient:
 
         if group is None:
             group = TrialGroup(name=name, tags=tags, description=description)
+
+        group.project_id = self.project.uid
+        self.trial.group_id = group.uid
 
         self.group = group
         self.group.trials.append(self.trial.uid)
@@ -168,25 +178,26 @@ class TrackClient:
         print(json.dumps(to_json(self.trial, short), indent=2))
         return self
 
-    def save(self, file_name=options('log.save', default=None)):
+    def save(self, file_name_override=None):
         """ saved logged metrics into a json file """
+        self.data_store.commit(file_name_override)
 
-        if file_name is None:
-            warning('No output file specified')
-            return
-
-        initial_data = []
-        if os.path.exists(file_name):
-            initial_data = json.load(open(file_name, 'r'))
-
-        if self.project is not None:
-            initial_data.append(to_json(self.project))
-        else:
-            initial_data.append(to_json(self.trial))
-
-        with open(file_name, 'w') as out:
-            json.dump(initial_data, out, indent=2)
-        return self
+        # if file_name is None:
+        #     warning('No output file specified')
+        #     return
+        #
+        # initial_data = []
+        # if os.path.exists(file_name):
+        #     initial_data = json.load(open(file_name, 'r'))
+        #
+        # if self.project is not None:
+        #     initial_data.append(to_json(self.project))
+        # else:
+        #     initial_data.append(to_json(self.trial))
+        #
+        # with open(file_name, 'w') as out:
+        #     json.dump(initial_data, out, indent=2)
+        # return self
 
     @staticmethod
     def get_device():

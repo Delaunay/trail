@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from track.struct import Status
+from track.structure import Status
 
 
 # pylint: disable=too-many-public-methods

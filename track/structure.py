@@ -20,6 +20,38 @@ class Status(Enum):
     Completed = 302      # -> has finished running
 
 
+_STATUS_INT = set(map(lambda x: x.value, Status.__members__.values()))
+_STATUS_STR = set(map(lambda x: x.name, Status.__members__.values()))
+
+
+class CustomStatus:
+    def __init__(self, name, value):
+        self._name = name
+        self._value = value
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def value(self):
+        return self._value
+
+
+def status(name=None, value=None):
+    if name is not None:
+        if name in _STATUS_STR:
+            return Status.__members__[name]
+
+        return CustomStatus(name, value)
+
+    if value is not None:
+        if value in _STATUS_INT:
+            return Status(value)
+
+        return CustomStatus(name, value)
+
+
 @dataclass
 class Trial:
     """ A single training run """
@@ -59,7 +91,7 @@ class Trial:
     errors: List[str] = field(default_factory=list)
 
     def __hash__(self):
-        return self.uid
+        return hash(self.uid)
 
 
 @dataclass
@@ -81,10 +113,13 @@ class TrialGroup:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    tags: Dict[str, any] = field(default_factory=dict)
     trials: List[Trial] = field(default_factory=list)
 
     project_id: Optional[int] = None
+
+    def __hash__(self):
+        return hash(self.uid)
 
 
 @dataclass
@@ -95,7 +130,6 @@ class Project:
     """
     def compute_uid(self) -> str:
         assert self.name is not None, f'Project need a name!'
-
         return self.name
 
     @property
@@ -107,9 +141,12 @@ class Project:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    tags: Dict[str, any] = field(default_factory=dict)
     groups: List[TrialGroup] = field(default_factory=list)
     trials: List[Trial] = field(default_factory=list)
+
+    def __hash__(self):
+        return hash(self.uid)
 
 
 _current_project = None
@@ -135,4 +172,10 @@ def set_current_trial(trial):
     _current_trial = trial
     return _current_trial
 
+
+if __name__ == '__main__':
+
+    print(status(name='Running'))
+    print(status(value=101))
+    print(status(name='test', value=23))
 

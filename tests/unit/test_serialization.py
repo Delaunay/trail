@@ -1,4 +1,4 @@
-from track.struct import Status, Project, TrialGroup,Trial
+from track.structure import Status, Project, TrialGroup,Trial
 from track.serialization import to_json, from_json
 
 

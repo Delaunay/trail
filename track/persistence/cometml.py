@@ -1,6 +1,6 @@
 from track.persistence.logger import LoggerBackend
 from track.persistence.query import RemoteProject, RemoteTrial
-from track.struct import Status
+from track.structure import Status
 from track.utils.log import warning
 
 from collections import defaultdict

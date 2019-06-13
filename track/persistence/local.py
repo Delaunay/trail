@@ -4,23 +4,67 @@ from dataclasses import dataclass, field
 from typing import Dict, Set
 from uuid import UUID
 
-from track.utils.log import error
-from track.struct import Project, Trial, TrialGroup
-from track.serialization import from_json
+
+from track.utils.log import error, warning
+from track.structure import Project, Trial, TrialGroup
+from track.serialization import from_json, to_json
 from track.persistence.storage import Storage
 
 
 @dataclass
 class LocalStorage(Storage):
     # Main storage
-    objects: Dict[UUID, any] = field(default_factory=dict)
+    target_file: str = None
+
+    _objects: Dict[UUID, any] = field(default_factory=dict)
     # Indexes
-    projects: Set[UUID] = field(default_factory=set)
-    groups: Set[UUID] = field(default_factory=set)
-    trials: Set[UUID] = field(default_factory=set)
-    project_names: Dict[str, UUID] = field(default_factory=dict)
-    group_names: Dict[str, UUID] = field(default_factory=dict)
-    trial_names: Dict[str, UUID] = field(default_factory=dict)
+    _projects: Set[UUID] = field(default_factory=set)
+    _groups: Set[UUID] = field(default_factory=set)
+    _trials: Set[UUID] = field(default_factory=set)
+    _project_names: Dict[str, UUID] = field(default_factory=dict)
+    _group_names: Dict[str, UUID] = field(default_factory=dict)
+    _trial_names: Dict[str, UUID] = field(default_factory=dict)
+
+    @property
+    def objects(self) -> Dict[UUID, any]:
+        return self._objects
+
+    # Indexes
+    @property
+    def projects(self) -> Set[UUID]:
+        return self._projects
+
+    @property
+    def groups(self) -> Set[UUID]:
+        return self._groups
+
+    @property
+    def trials(self) -> Set[UUID]:
+        return self._trials
+
+    @property
+    def project_names(self) -> Dict[str, UUID]:
+        return self._project_names
+
+    @property
+    def group_names(self) -> Dict[str, UUID]:
+        return self._group_names
+
+    def commit(self, name=None):
+        if name is None:
+            name = self.target_file
+
+        if name is None:
+            error('No output file target')
+            return None
+
+        # only save top level projects
+        objects = []
+        for uid in self._projects:
+            objects.append(to_json(self._objects[uid]))
+
+        with open(name, 'w') as output:
+            json.dump(objects, output, indent=2)
 
 
 def merge_objects(o1, o2):
@@ -64,7 +108,8 @@ def merge_objects(o1, o2):
 
 def load_database(json_name):
     if not os.path.exists(json_name):
-        return LocalStorage()
+        warning(f'Local Storage was not found at {json_name}')
+        return LocalStorage(target_file=json_name)
 
     with open(json_name, 'r') as file:
         objects = json.load(file)
@@ -92,16 +137,22 @@ def load_database(json_name):
 
             if obj.name is not None:
                 project_names[obj.name] = obj.uid
+
+            for trial in obj.trials:
+                db[trial.uid] = trial
+                trials.add(trial.uid)
+
         elif isinstance(obj, Trial):
             trials.add(obj.uid)
             if obj.name is not None:
                 trial_names[obj.name] = obj.uid
+
         elif isinstance(obj, TrialGroup):
             groups.add(obj.uid)
             if obj.name is not None:
                 group_names[obj.name] = obj.uid
 
-    return LocalStorage(db, projects, groups, trials, project_names, group_names, trial_names)
+    return LocalStorage(json_name, db, projects, groups, trials, project_names, group_names, trial_names)
 
 
 class DatabaseManager:

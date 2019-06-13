@@ -34,7 +34,10 @@ def test_end_to_end():
 
     # ----
 
-    trial = TrackClient(backend='json-local')
+    trial = TrackClient(
+        backend='local',
+        storage='file://test.json'
+    )
     trial.add_tags(workers=8, hpo='byopt')
     trial.set_project(
         name='ConvnetTest',

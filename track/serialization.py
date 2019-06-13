@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Dict
-from track.struct import Project, Trial, TrialGroup
+from track.structure import Project, Trial, TrialGroup, status
 
 
 class SerializerAspect:
@@ -130,7 +130,9 @@ def from_json(obj: Dict[str, any]) -> any:
             metrics=obj['metrics'],
             chronos=obj['chronos'],
             errors=obj['errors'],
-            status=obj['status']
+            status=status(
+                name=obj['status']['name'],
+                value=obj['status']['value'])
         )
 
     raise NotImplementedError()

@@ -2,7 +2,7 @@ from argparse import Namespace
 from typing import Callable
 
 from track.containers.types import float32
-from track.struct import Trial, Status
+from track.structure import Trial, Status
 
 from track.utils.signal import SignalHandler
 

@@ -72,8 +72,8 @@ def query(backend_name, file_name=None, **kwargs):
         - RemoteExperiment()
     """
 
-    from track.struct import get_current_trial, get_current_project
-    from track.struct import Project
+    from track.structure import get_current_trial, get_current_project
+    from track.structure import Project
 
     if backend_name == 'comet_ml':
         from .cometml import CMLExperiment
