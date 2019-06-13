@@ -12,7 +12,6 @@ import torch.nn.functional as F
 import argparse
 
 sys.stderr = sys.stdout
-import mlflow
 from pytest import skip
 
 DISABLED = True
@@ -22,6 +21,8 @@ DISABLED = True
 def test_end_to_end():
     if DISABLED:
         return
+
+    import mlflow
 
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
