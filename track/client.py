@@ -1,5 +1,4 @@
 import json
-import os
 import inspect
 from typing import Union, Callable, Optional
 
@@ -16,8 +15,7 @@ from track.serialization import to_json
 from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
-from track.utils.out import RingOutputDecorator
-from track.utils.log import warning
+from track.utils.out import RingOutputDecorator 
 
 
 # Client has a lot of methods on purpose. This is our unified API
@@ -26,7 +24,7 @@ class TrackClient:
     """ TrackClient. A client tracks a single Trial being ran"""
 
     def __init__(self, backend=options('log.backend.name', default='none'),
-                       storage=options('log.storage.protocol', default='file://${project}.json'), **kwargs):
+                 storage=options('log.storage.protocol', default='file://${project}.json'), **kwargs):
 
         self.project = None
         self.group = None

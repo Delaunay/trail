@@ -5,7 +5,7 @@ from track.persistence.local import load_database
 def test_local_query():
     if True:
         return
-    
+
     db = load_database(f'{os.path.dirname(__file__)}/../e2e/test.json')
 
     project_id = db.project_names['ConvnetTest']
