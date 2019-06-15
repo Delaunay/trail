@@ -15,10 +15,31 @@ install:
   - pip install https://download.pytorch.org/whl/cpu/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
 
 # command to run tests
-script:
-  - python -m pytest
-  - python -m pytest --cov=track tests/
-  - flake8 track
-  - pylint track; true
-  - mypy track; true
-  - codecov
+#script:
+#  - python -m pytest
+#  - python -m pytest --cov=track tests/
+#  - flake8 track
+#  - pylint track; true
+#  - mypy track; true
+#  - codecov
+
+jobs:
+  include:
+    - stage: unit-test
+      script:
+        - python -m pytest
+    - stage: coverage
+      script:
+        - python -m pytest --cov=track tests/
+    - stage: pep8
+      script:
+        - flake8 track
+    - stage: pylint
+      script:
+        - pylint track; true
+    - stage: typecheck
+      script:
+        - mypy track; true
+    - stage: codecov
+      script:
+        - codecov

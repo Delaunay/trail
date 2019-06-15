@@ -12,8 +12,8 @@ class Protocol:
         raise NotImplementedError()
 
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
-               start_callback=None,
-               end_callback=None):
+                               start_callback=None,
+                               end_callback=None):
         raise NotImplementedError()
 
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
@@ -61,4 +61,3 @@ class Protocol:
 
     def new_trial(self, trial: Trial):
         raise NotImplementedError()
-
