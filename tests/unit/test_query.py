@@ -1,5 +1,4 @@
 import os
-from track.persistence.local import load_database
 
 
 def test_local_query():

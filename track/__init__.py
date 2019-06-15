@@ -1,6 +1,6 @@
 
-from .client import TrackClient
-from .structure import Project, TrialGroup
+from track.client import TrackClient
+from track.structure import Project, TrialGroup
 
 
 __all__ = [

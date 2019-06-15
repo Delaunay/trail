@@ -1,5 +1,4 @@
-import track.persistence.cometml
-from track import TrailClient, Project, TrialGroup
+from track import TrailClient
 
 import sys
 import torch

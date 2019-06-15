@@ -34,16 +34,11 @@ def test_end_to_end():
 
     # ----
 
-    trial = TrackClient(
-        backend='local',
-        storage='file://test.json'
-    )
-    trial.add_tags(workers=8, hpo='byopt')
-    trial.set_project(
-        name='ConvnetTest',
-        description='Trail test example'
-    )
+    trial = TrackClient(backend='file://test.json')
+    trial.set_project(name='ConvnetTest', description='Trail test example')
     trial.set_group(name='test_group')
+    trial.new_trial()
+    trial.add_tags(workers=8, hpo='byopt')
 
     args = trial.get_arguments(parser.parse_args([]), show=True)
     device = trial.get_device()

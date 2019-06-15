@@ -1,5 +1,6 @@
 import hashlib
 import inspect
+import struct
 from typing import Tuple, List
 
 
@@ -43,6 +44,9 @@ def compute_hash(*args, **kwargs):
     def encode(item):
         if isinstance(item, str):
             item = item.encode('utf8')
+        elif isinstance(item, float):
+            item = bytearray(struct.pack("d", item))
+
         else:
             item = bytes([item])
 

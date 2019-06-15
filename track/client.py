@@ -8,14 +8,14 @@ from benchutils.statstream import StatStream
 from track.utils.throttle import throttled
 from track.structure import Trial, Project, TrialGroup, set_current_project, set_current_trial
 
-from track.persistence.storage import Storage
-from track.logger import Logger
-from track.persistence import build_logger, load_storage
+from track.utils.log import warning
+from track.logger import TrialLogger
+from track.persistence import get_protocol
 from track.serialization import to_json
 from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
-from track.utils.out import RingOutputDecorator 
+from track.utils.out import RingOutputDecorator
 
 
 # Client has a lot of methods on purpose. This is our unified API
@@ -23,100 +23,95 @@ from track.utils.out import RingOutputDecorator
 class TrackClient:
     """ TrackClient. A client tracks a single Trial being ran"""
 
-    def __init__(self, backend=options('log.backend.name', default='none'),
-                 storage=options('log.storage.protocol', default='file://${project}.json'), **kwargs):
+    def __init__(self, backend=options('log.backend.name', default='none')):
 
         self.project = None
         self.group = None
-        self.trial = Trial()
+        self.trial = None
 
-        set_current_trial(self.trial)
-
-        self.logger_backend = backend
-        self.storage_protocol = storage
-
-        self.logger: Logger = Logger(self.trial, build_logger(backend, **kwargs))
+        self.protocol = get_protocol(backend)
+        self.logger: TrialLogger = None
         self.eta = EstimatedTime(None, 1)
-
-        # self._system_info()
-        # self._version_info()
 
         self.code = None
         self.stderr = None
         self.stdout = None
         self.batch_printer = None
         self.set_version()
-        self.data_store: Optional[Storage] = None
 
-    def set_store(self, store, name=None, force=False):
-        """ local store: file://file.json"""
-        if name is None and self.project is not None:
-            name = self.project.name
-
-        if name is not None:
-            store = store.replace('${project}', name)
-
-        if self.data_store is None or force:
-            self.data_store = load_storage(store)
-        return self
+        self.version = None
+        self.set_version()
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
         """ compute the version tag from the function call stack """
-        if version_fun is None:
-            version_fun = default_version_hash
+        def version_compute():
+            fun = version_fun
+            if fun is None:
+                fun = default_version_hash
 
-        if version is None:
-            self.trial.version = version_fun()
-        else:
-            self.trial.version = version
+            if version is None:
+                return fun()
+            else:
+                return version
+
+        self.version = version_compute
         return self
 
     def set_project(self, project=None, name=None, tags=None, description=None):
-        self.set_store(self.storage_protocol, name)
-
-        # Check if the storage for the project
-        if name is not None:
-            project_id = self.data_store.project_names.get(name)
-
-            if project_id is not None:
-                # info('Found project from storage')
-                project = self.data_store.objects.get(project_id)
-                assert project is not None, \
-                    f'Project (id: {project_id}) was found in index but missing in the data table'
-
         if project is None:
-            assert name is not None, 'Project need to have a unique name'
-            # info('Creating a new project')
             project = Project(name=name, tags=tags, description=description)
-            self.data_store.insert_project(project)
 
-        self.trial.project_id = project.uid
-        set_current_project(project)
+        assert project.name is not None, 'Project name cannot be none'
+
+        # does the project exist ?
+        self.project = self.protocol.get_project(project)
+
+        if self.project is not None:
+            return self.project
+
         self.project = project
-        self.logger.set_project(project)
-        self.data_store.insert_trial(self.trial)
-        return project
+        self.protocol.new_project(project)
+        return self.project
 
-    def set_group(self, group=None, name=None, tags=None, description=None):
-        if self.project is None:
-            raise RuntimeError('Project needs to be set to define a group')
-
-        # look for the group in the project
-        for gid in self.project.groups:
-            g = self.data_store.objects[gid]
-            if g.name == name:
-                group = g
-
+    def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):
         if group is None:
-            group = TrialGroup(name=name, tags=tags, description=description)
+            group = TrialGroup(name=name, tags=tags, description=description, project_id=self.project.uid)
 
-        group.project_id = self.project.uid
-        self.trial.group_id = group.uid
+        if group.project_id is None:
+            group.project_id = self.project.uid
+
+        self.group = self.protocol.get_trial_group(group)
+
+        if self.group is not None:
+            return self.group
 
         self.group = group
-        self.group.trials.append(self.trial.uid)
-        self.logger.set_group(group)
-        return group
+        self.protocol.new_trial_group(self.group)
+        return self.group
+
+    def _make_trial(self, name=None):
+        project_id = None
+        group_id = None
+        if self.project is not None:
+            project_id = self.project.uid
+
+        if self.group is not None:
+            group_id = self.group.uid
+
+        trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id)
+        trial = self.protocol.new_trial(trial)
+
+        return trial
+
+    def new_trial(self, name=None):
+        self.trial = self._make_trial(name)
+        self.logger = TrialLogger(self.trial, self.protocol)
+
+        if self.project is not None:
+            self.protocol.add_project_trial(self.project, self.trial)
+
+        if self.group is not None:
+            self.protocol.add_group_trial(self.group, self.trial)
 
     def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
@@ -136,19 +131,10 @@ class TrackClient:
 
     def __getattr__(self, item):
         """ try to use the backend attributes if not available """
-        # def chainer(fun):
-        #     def _chainer(*args, **kwargs):
-        #         fun(*args, **kwargs)
-        #         return self
-        #     return _chainer
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):
             return getattr(self.logger, item)
-
-        # Look for the attribute in the backend
-        if hasattr(self.logger.backend, item):
-            return getattr(self.logger.backend, item)
 
         raise AttributeError(item)
 
@@ -178,24 +164,7 @@ class TrackClient:
 
     def save(self, file_name_override=None):
         """ saved logged metrics into a json file """
-        self.data_store.commit(file_name_override)
-
-        # if file_name is None:
-        #     warning('No output file specified')
-        #     return
-        #
-        # initial_data = []
-        # if os.path.exists(file_name):
-        #     initial_data = json.load(open(file_name, 'r'))
-        #
-        # if self.project is not None:
-        #     initial_data.append(to_json(self.project))
-        # else:
-        #     initial_data.append(to_json(self.trial))
-        #
-        # with open(file_name, 'w') as out:
-        #     json.dump(initial_data, out, indent=2)
-        # return self
+        self.protocol.commit(file_name_override=file_name_override)
 
     @staticmethod
     def get_device():

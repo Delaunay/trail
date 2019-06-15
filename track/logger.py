@@ -6,14 +6,11 @@ from track.structure import Trial, Status
 
 from track.utils.signal import SignalHandler
 
-from track.chrono import ChronoContext
 from track.aggregators.aggregator import Aggregator
 from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
-from track.aggregators.aggregator import ValueAggregator
 from track.aggregators.aggregator import TimeSeriesAggregator
-from track.persistence.logger import LoggerBackend, NoLogLogger
-
+from track.persistence.protocol import Protocol
 
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
@@ -32,101 +29,56 @@ class LogSignalHandler(SignalHandler):
         self.logger.set_status(Status.Interrupted, error=frame)
 
 
-class Logger(LoggerBackend):
+def _make_container(step, aggregator):
+    if step is None:
+        if aggregator is None:
+            # favor ts aggregator because it has an option to cut the TS for printing purposes
+            return ts_aggregator()
+        return aggregator()
+    else:
+        return dict()
+
+
+class TrialLogger:
     """ Unified logger interface.
     To log to a specific backend you should pass the desired backend to the constructor """
 
-    def __init__(self, trial: Trial, backend=NoLogLogger()):
-        self.backend = backend
+    def __init__(self, trial: Trial, protocol: Protocol):
+        self.protocol = protocol
         self.trial = trial
-        acc = ValueAggregator()
-        self.depth = 0
-        self.trial.chronos['runtime'] = acc
-        self.parent_chrono = ChronoContext('runtime', acc)
-        self.start()
+        self.parent_chrono = self.protocol.log_trial_start(self.trial)
         self.signal_handler = LogSignalHandler(self)
 
     def add_tag(self, key, value):
         self.trial.tags[key] = value
 
-    def log_argument(self, key, value):
-        self.trial.parameters[key] = value
-        self.backend.log_argument(key, value)
+    def log_arguments(self, args: Namespace = None, **kwargs):
+        if args is not None:
+            kwargs.update(dict(**vars(args)))
 
-    def log_arguments(self, args: Namespace):
-        self.trial.parameters.update(dict(**vars(args)))
-        self.backend.log_arguments(args)
-
-    def _make_container(self, step, aggregator):
-        if step is None:
-            if aggregator is None:
-                # favor ts aggregator because it has an option to cut the TS for printing purposes
-                return ts_aggregator()
-            return aggregator()
-        else:
-            return dict()
+        self.protocol.log_trial_arguments(self.trial, **kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        """
-            :params step optional key that optionally can be set; originally meant as a way to specify a kind of
-                    id representing at which step of the training process the model is at.
-
-            :params aggregator: custom container used to store the metrics. if not specified it will fall back
-                    to standard `list` and `dict`
-
-            :params kwargs: key, value pair representing the metrics that need to be logged
-        """
-        for k, v in kwargs.items():
-            container = self.trial.metrics.get(k)
-
-            if container is None:
-                container = self._make_container(step, aggregator)
-                self.trial.metrics[k] = container
-
-            if step is not None and isinstance(container, dict):
-                container[step] = v
-            elif step:
-                container.append((step, v))
-            else:
-                container.append(v)
-
-        self.backend.log_metrics(step, **kwargs)
+        self.protocol.log_trial_metrics(self.trial, step, aggregator, **kwargs)
 
     def log_metadata(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        for k, v in kwargs.items():
-            container = self.trial.metadata.get(k)
+        self.protocol.log_trial_metadata(self.trial, aggregator, **kwargs)
 
-            if container is None:
-                container = self._make_container(None, aggregator)
-                self.trial.metadata[k] = container
-
-            container.append(v)
-
-        self.backend.log_metadata(**kwargs)
+    def add_tags(self, **kwargs):
+        self.protocol.add_trial_tags(self.trial, **kwargs)
 
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator,
                start_callback=None,
                end_callback=None):
-        """ create a chrono context to time the runtime of the code inside it"""
-        agg = self.trial.chronos.get(name)
-        if agg is None:
-            agg = aggregator()
-            self.trial.chronos[name] = agg
 
-        return ChronoContext(name, agg, start_callback=start_callback, end_callback=end_callback)
+        return self.protocol.log_trial_chrono_start(self.trial, name, aggregator, start_callback, end_callback)
 
     # Context API for starting the top level chrono
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
-        metrics = {}
-        for k, v in self.trial.chronos.items():
-            metrics[f'chrono_{k}'] = v.to_json()
-
-        self.backend.log_metadata(**metrics)
-
         if exc_type is not None:
-            self.set_status(Status.Exception, error=exc_type)
+            self.protocol.set_trial_status(self.trial, Status.Exception, error=exc_type)
         else:
-            self.set_status(Status.Completed)
+            self.protocol.set_trial_status(self.trial, Status.Completed)
 
         self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
         if exc_type is not None:
@@ -144,10 +96,7 @@ class Logger(LoggerBackend):
         self.finish(exc_type, exc_val, exc_tb)
 
     def set_status(self, status, error=None):
-        self.trial.status = status
-        if error is not None:
-            self.trial.errors.append(error)
-        self.backend.set_status(status, error)
+        self.protocol.set_trial_status(self.trial, status, error)
 
     def log_file(self, file_name):
         pass
