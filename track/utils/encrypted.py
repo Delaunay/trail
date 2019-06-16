@@ -59,14 +59,13 @@ class EncryptedSocket:
 
         key = HKDF(
             algorithm=hashes.SHA256(),
-            length=32,
+            length=48,
             salt=None,
             info=b'handshake data',
             backend=default_backend()
         ).derive(shared_key)
 
-        iv = self.socket.recv(16)
-        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+        cipher = Cipher(algorithms.AES(key[0:32]), modes.CBC(key[32:]), backend=default_backend())
         self.encrypt = cipher.encryptor()
         self.decrypt = cipher.decryptor()
         return self
@@ -95,8 +94,6 @@ class EncryptedSocket:
 
         data = clt.recv(32)   # Receive client public Key
         clt.sendall(pubkey)     # send public key to client
-        iv = os.urandom(16)     # send IV
-        clt.sendall(iv)
 
         public_key = X25519PublicKey.from_public_bytes(data)
 
@@ -104,7 +101,7 @@ class EncryptedSocket:
         shared_key = server_key.exchange(public_key)
         shared_key = HKDF(
             algorithm=hashes.SHA256(),
-            length=32,
+            length=48,
             salt=None,
             info=b'handshake data',
             backend=default_backend()
@@ -113,7 +110,7 @@ class EncryptedSocket:
         encrypted_socket = EncryptedSocket()
         encrypted_socket.socket = clt
 
-        cipher = Cipher(algorithms.AES(shared_key), modes.CBC(iv), backend=default_backend())
+        cipher = Cipher(algorithms.AES(shared_key[0:32]), modes.CBC(shared_key[32:]), backend=default_backend())
 
         encrypted_socket.encrypt = cipher.encryptor()
         encrypted_socket.decrypt = cipher.decryptor()
