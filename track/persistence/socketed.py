@@ -1,34 +1,15 @@
 from track.persistence.protocol import Protocol
-from track.structure import Project, TrialGroup, Trial
-from track.aggregators.aggregator import Aggregator
-from track.aggregators.aggregator import StatAggregator
+from track.utils.encrypted import open_socket, listen_socket
+from track.aggregators.aggregator import Aggregator, StatAggregator
+from track.structure import Trial, TrialGroup, Project
 from typing import Callable
-import asyncio
-import socket
 
-# socket://username:password@192.168.0.1:8900/file.json
-# 1. Authentication
-#       client: {
-#           'username': something
-#           'pubkey': '....'
-#       }
-#
-#       server: {
-#           'pubkey': '...'
-#           'token': '...'
-#       }
-#
-#       Decrypt Token and use as AES password
 
 class SocketClient(Protocol):
     def __init__(self, username, password, address, port):
-        self.socket = socket.create_connection((address, port))
-        self.socket.send()
+        self.socket = open_socket(address, port)
+        print(self.socket.recvall())
 
-
-    def init_encryption(self):
-
-        self.socket.send()
 
     def log_trial_start(self, trial):
         raise NotImplementedError()
@@ -86,11 +67,22 @@ class SocketClient(Protocol):
 
     def new_trial(self, trial: Trial):
         raise NotImplementedError()
-
-    async
 
 
 class SocketServer(Protocol):
+
+    def run(self, port):
+        socket = listen_socket('localhost', port)
+
+        while True:
+            client, addr = socket.accept()
+
+            client.sendall(b'HELLO')
+
+
+        time.sleep(10)
+
+
     def log_trial_start(self, trial):
         raise NotImplementedError()
 
@@ -148,3 +140,23 @@ class SocketServer(Protocol):
     def new_trial(self, trial: Trial):
         raise NotImplementedError()
 
+
+
+if __name__ == '__main__':
+    try:
+        from multiprocessing import Process
+        import socket
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 0))
+        port = s.getsockname()[1]
+        s.close()
+
+        s = SocketServer()
+        server = Process(target=s.run, args=(port,))
+        server.start()
+
+        c = SocketClient('', '', 'localhost', port)
+    except KeyboardInterrupt as e:
+        server.terminate()
+        raise e
