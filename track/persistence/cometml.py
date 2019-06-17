@@ -49,7 +49,7 @@ class CometMLClient(Protocol):
             cb()
 
         data['end'] = time.time()
-        self.cml.log_metric(f'chrono_name', data['end'] - data['start'])
+        self.cml.log_metric(f'chrono_{name}', data['end'] - data['start'])
 
     def log_trial_start(self, trial):
         self.cml.log_other('trial_start', time.time())
@@ -101,7 +101,7 @@ class CometMLClient(Protocol):
         pass
 
     def get_trial(self, trial: Trial):
-        warning('CometML does not expose this functionality')
+        return self.api.get(workspace=trial.project_id, project=trial.group_id, experiment=trial.uid)
 
     def new_trial(self, trial: Trial):
         warning('CometML does not expose this functionality')
