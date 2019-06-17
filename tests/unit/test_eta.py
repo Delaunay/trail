@@ -1,7 +1,6 @@
 from track.utils.eta import EstimatedTime
 
 
-
 if __name__ == '__main__':
     import time
     from track.chrono import ChronoContext

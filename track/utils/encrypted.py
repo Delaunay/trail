@@ -1,4 +1,4 @@
-import os
+import ssl
 import struct
 import socket
 
@@ -13,11 +13,23 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 
 
-def open_socket(add, port):
+def open_socket(add, port, backend='ssl'):
+    if backend == 'ssl':
+        context = ssl.create_default_context()
+        sckt = socket.create_connection((add, port))
+        return context.wrap_socket(sckt, server_hostname=add, server_side=False)
+
     return EncryptedSocket().open(add, port)
 
 
-def listen_socket(add, port):
+def listen_socket(add, port, backend='ssl'):
+    if backend == 'ssl':
+        context = ssl.create_default_context()
+        sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        sckt.bind((add, port))
+        sckt.listen()
+        return context.wrap_socket(sckt, server_side=True)
+
     return EncryptedSocket().listen(add, port)
 
 
@@ -93,7 +105,7 @@ class EncryptedSocket:
         )
 
         data = clt.recv(32)   # Receive client public Key
-        clt.sendall(pubkey)     # send public key to client
+        clt.sendall(pubkey)    # send public key to client
 
         public_key = X25519PublicKey.from_public_bytes(data)
 

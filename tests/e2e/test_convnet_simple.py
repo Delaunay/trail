@@ -46,7 +46,7 @@ def test_end_to_end():
     try:
         import torch.backends.cudnn as cudnn
         cudnn.benchmark = True
-    except:
+    except Exception:
         pass
 
     class ConvClassifier(nn.Module):
@@ -113,10 +113,10 @@ def test_end_to_end():
             transforms.RandomResizedCrop(28),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            #transforms.Normalize(
-            #    mean=[0.485, 0.456, 0.406],
-            #    std=[0.229, 0.224, 0.225]
-            #),
+            # transforms.Normalize(
+            #     mean=[0.485, 0.456, 0.406],
+            #     std=[0.229, 0.224, 0.225]
+            # ),
         ])
     }
     if args.data == 'mnist':
@@ -158,7 +158,7 @@ def test_end_to_end():
                 batch_id = 0
                 epoch_loss = 0
                 while True:
-                    with trial.chrono('batch_time') as batch_time:
+                    with trial.chrono('batch_time'):
 
                         with trial.chrono('batch_wait'):
                             batch = next_batch(batch_iter)
@@ -187,7 +187,7 @@ def test_end_to_end():
                     # ---
                     epoch_loss /= len(train_loader)
                     trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
-                    trial.show_eta((epoch, batch_id), batch_time, throttle=100)
+                    trial.show_eta((epoch, batch_id), epoch_time, throttle=100)
                 # ---
 
     trial.report()

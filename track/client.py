@@ -1,14 +1,13 @@
 import json
 import inspect
-from typing import Union, Callable, Optional
+from typing import Union, Callable
 
 from argparse import ArgumentParser, Namespace
 
 from benchutils.statstream import StatStream
 from track.utils.throttle import throttled
-from track.structure import Trial, Project, TrialGroup, set_current_project, set_current_trial
+from track.structure import Trial, Project, TrialGroup
 
-from track.utils.log import warning
 from track.logger import TrialLogger
 from track.persistence import get_protocol
 from track.serialization import to_json
