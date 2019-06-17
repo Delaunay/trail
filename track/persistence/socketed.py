@@ -12,7 +12,6 @@ from track.aggregators.aggregator import Aggregator, StatAggregator
 from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
 from track.utils.log import error, warning
-from track.persistence.local import FileProtocol
 
 from typing import Callable
 
@@ -55,7 +54,19 @@ def recv(socket, timeout=None):
     return to_obj(data[4:])
 
 
+def _check(result):
+    if result is False:
+        warning('RPC failed')
+
+    return result
+
+
 class SocketClient(Protocol):
+    """ forwards all the local track requests to the track server that execute the requests and send back the results
+
+    """
+
+    # socket://[username:password@]host1[:port1][,...hostN[:portN]]][/[database][?options]]
     def __init__(self, username, password, address, port):
         self.socket = open_socket(address, port)
 
@@ -226,8 +237,9 @@ def write(writer, msg):
 
 
 class SocketServer(Protocol):
-    def __init__(self, file_name):
-        self.backend = FileProtocol(file_name)
+    def __init__(self, backend):
+        self.backend = backend
+        self.authentication = {}
 
     # https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio
     def run_server(self, add, port):
@@ -237,109 +249,91 @@ class SocketServer(Protocol):
         loop.create_task(asyncio.start_server(self.handle_client, sock=sckt))
         loop.run_forever()
 
+    def exec(self, reader, writer, proc_name, proc, args):
+        try:
+            answer = proc(**args)
+
+            if answer is None:
+                answer = True
+
+            write(writer, answer)
+
+        except Exception:
+            error(f'An exception occurred while processing (rpc: {proc_name}) '
+                  f'for user f{self.get_username(reader)[0]}')
+
+            error(traceback.format_exc())
+            write(writer, False)
+
     async def handle_client(self, reader, writer):
         running = True
+        count = 0
+
         while running:
             request = await read(reader)
+            count += 1
 
             proc_name = request.pop('__rpc__', None)
 
             if proc_name is None:
-                warning(f'Could not process message {request}')
-                continue
-
-            attr = getattr(self, proc_name)
-            if attr is None:
-                warning(f'SocketServer does not implement `{proc_name}`')
-                continue
-
-            try:
-                answer = attr(**request)
-                if answer is None:
-                    answer = True
-
-                write(writer, answer)
-
-            except Exception:
-                error(f'An exception occurred while processing (rpc: {proc_name})')
-                error(traceback.format_exc())
+                error(f'Could not process message {request}')
                 write(writer, False)
+                continue
 
-    def log_trial_start(self, trial):
-        return self.backend.log_trial_start(trial)
+            elif proc_name == 'authenticate':
+                request['reader'] = reader
+                self.exec(reader, writer, proc_name, self.authenticate, request)
+                continue
 
-    def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
-        return self.backend.log_trial_finish(trial, exc_type, exc_val, exc_tb)
+            elif not self.is_authenticated(reader):
+                error(f'Client is not authenticated cannot execute (proc: {proc_name})')
+                write(writer, False)
+                continue
 
-    def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
-                               start_callback=None,
-                               end_callback=None):
-        return self.backend.log_trial_chrono_start(trial, name)
+            # Forward request to backend
+            attr = getattr(self.backend, proc_name)
 
-    def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
-        return self.backend.log_trial_chrono_finish(trial, name, exc_type, exc_val, exc_tb)
+            if attr is None:
+                error(f'{self.backend.__name__} does not implement `{proc_name}`')
+                write(writer, False)
+                continue
 
-    def log_trial_arguments(self, trial: Trial, **kwargs):
-        return self.backend.log_trial_arguments(trial, **kwargs)
+            self.exec(reader, writer, proc_name, attr, request)
 
-    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        return self.backend.log_trial_metadata(trial, **kwargs)
+    def get_username(self, reader):
+        return self.authentication.get(reader)
 
-    def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        return self.backend.log_trial_metrics(trial, step, **kwargs)
+    def is_authenticated(self, reader):
+        return self.authentication.get(reader) is not None
 
-    def set_trial_status(self, trial: Trial, status, error=None):
-        return self.backend.set_trial_status(trial, status, error)
-
-    def add_trial_tags(self, trial, **kwargs):
-        return self.backend.add_trial_tags(trial, **kwargs)
-
-    # Object Creation
-    def get_project(self, project: Project):
-        return self.backend.get_project(project)
-
-    def new_project(self, project: Project):
-        return self.backend.new_project(project)
-
-    def get_trial_group(self, group: TrialGroup):
-        return self.backend.get_trial_group(group)
-
-    def new_trial_group(self, group: TrialGroup):
-        return self.backend.new_trial_group(group)
-
-    def add_project_trial(self, project: Project, trial: Trial):
-        return self.backend.add_project_trial(project, trial)
-
-    def add_group_trial(self, group: TrialGroup, trial: Trial):
-        return self.backend.add_group_trial(group, trial)
-
-    def commit(self, **kwargs):
-        return self.backend.commit(**kwargs)
-
-    def get_trial(self, trial: Trial):
-        return self.backend.get_trial(trial)
-
-    def new_trial(self, trial: Trial):
-        return self.backend.new_trial(trial)
+    def authenticate(self, reader, username, password):
+        self.authentication[reader] = (username, password)
+        return 'authenticated'
 
 
-if __name__ == '__main__':
-    # try:
-    #     from multiprocessing import Process
-    #     import socket
-    #
-    #     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     s.bind(('', 0))
-    #     port = s.getsockname()[1]
-    #     s.close()
-    #
-    #     s = SocketServer()
-    #     server = Process(target=s.run, args=(port,))
-    #     server.start()
-    #
-    #     c = SocketClient('', '', 'localhost', port)
-    # except KeyboardInterrupt as e:
-    #     server.terminate()
-    #     raise e
+def start_track_server(protocol, hostname, port):
+    """
 
-    print(to_bytes(True))
+    :param protocol: string that represent a backend that implements the track protocol
+
+            FileProtocol: file://report.json            : save using the file protocol (local json file)
+            CometML     : cometml://workspace/project   : save through cometml API
+            MLFloat     : mlflow://...
+
+    :param hostname : hostname of the server
+    :param port     : port to listen for incoming client
+
+    :return:
+    """
+    from track.persistence import get_protocol
+
+    server = SocketServer(get_protocol(protocol))
+
+    try:
+        server.run_server(hostname, port)
+    except KeyboardInterrupt as e:
+        server.commit()
+        raise e
+    except Exception as e:
+        server.commit()
+        raise e
