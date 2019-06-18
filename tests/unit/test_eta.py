@@ -14,7 +14,7 @@ if __name__ == '__main__':
     for i in range(0, 5):
         for j in range(0, 10):
 
-            with ChronoContext('time', agg, None, None):
+            with ChronoContext(agg, None, None):
                 time.sleep(1)
 
         eta.show_eta((i, j))
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     for i in range(50):
 
-        with ChronoContext('time', agg, None, None):
+        with ChronoContext(agg, None, None):
             time.sleep(1)
 
         eta.show_eta(i)

@@ -98,7 +98,9 @@ class TrackClient:
             group_id = self.group.uid
 
         trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id)
+        print(trial)
         trial = self.protocol.new_trial(trial)
+        print(trial)
 
         return trial
 

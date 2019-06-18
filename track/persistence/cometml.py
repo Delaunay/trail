@@ -1,4 +1,5 @@
 from track.persistence.protocol import Protocol
+from track.persistence.utils import parse_uri
 from track.aggregators.aggregator import Aggregator, StatAggregator
 from track.structure import Trial, TrialGroup, Project
 from track.utils.log import warning
@@ -9,11 +10,22 @@ from comet_ml import Experiment, API
 import time
 
 
-class CometMLClient(Protocol):
+class CometMLProtocol(Protocol):
 
     # cometml://[username:password@]host1[:port1][,...hostN[:portN]]][/[database][?options]]
-    def __init__(self, project_name, workspace):
-        self.cml = Experiment(project_name=project_name, workspace=workspace)
+    def __init__(self, uri):
+        uri = parse_uri(uri)
+
+        # cometml:workspace/project
+        path = uri.get('path')
+
+        if not path:
+            # cometml://workspace/project
+            path = uri.get('address')
+
+        workspace, project = path.split('/', maxsplit=2)
+
+        self.cml = Experiment(project_name=project, workspace=workspace)
         self.chrono = {}
         self._api = None
 

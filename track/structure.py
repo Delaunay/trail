@@ -7,6 +7,8 @@ from track.versioning import compute_hash
 
 
 class Status(Enum):
+    CreatedGroup = 0    # was created nothing is planed for it at the moment
+
     RunningGroup = 100  # is running
     Running = 101
 
@@ -64,6 +66,7 @@ class Trial:
 
     @property
     def hash(self):
+        print(self._hash)
         if self._hash is None:
             self._hash = self.compute_hash()
         return self._hash
@@ -86,7 +89,8 @@ class Trial:
     metrics: Dict[str, any] = field(default_factory=dict)
     # Timers are saved here
     chronos: Dict[str, any] = field(default_factory=dict)
-    status: Optional[Status] = None
+    status: Optional[Status] = Status.CreatedGroup
+
     # List of errors that occurred during the training
     errors: List[str] = field(default_factory=list)
 

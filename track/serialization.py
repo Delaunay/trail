@@ -1,6 +1,8 @@
 from uuid import UUID
 from typing import Dict
-from track.structure import Project, Trial, TrialGroup, status
+
+from track.chrono import ChronoContext
+from track.structure import Project, Trial, TrialGroup, Status, status
 
 
 class SerializerAspect:
@@ -15,6 +17,13 @@ class SerializerUUID(SerializerAspect):
 
 class SerializerTrial(SerializerAspect):
     def to_json(self, obj: Trial, short=False):
+        stat = obj.status
+
+        if not isinstance(stat, dict):
+            stat = {
+                'value': obj.status.value,
+                'name': obj.status.name
+            }
         return {
             'dtype': 'trial',
             'uid': to_json(obj.uid),
@@ -31,10 +40,7 @@ class SerializerTrial(SerializerAspect):
             'metrics': to_json(obj.metrics, short),
             'chronos': to_json(obj.chronos, short),
             'errors': obj.errors,
-            'status': {
-                'value': obj.status.value,
-                'name': obj.status.name
-            }
+            'status': stat
         }
 
 
@@ -64,11 +70,26 @@ class SerializerProject(SerializerAspect):
         }
 
 
+class SerializerChronoContext(SerializerAspect):
+    def to_json(self, obj: any, short=False):
+        return {}
+
+
+class SerializerStatus(SerializerAspect):
+    def to_json(self, obj: Status, short=False):
+        return {
+            'name': obj.name,
+            'value': obj.value
+        }
+
+
 serialization_aspects = {
     UUID: SerializerUUID(),
     Project: SerializerProject(),
     TrialGroup: SerializerTrialGroup(),
-    Trial: SerializerTrial()
+    Trial: SerializerTrial(),
+    ChronoContext: SerializerChronoContext(),
+    Status: SerializerStatus()
 }
 
 
@@ -93,7 +114,10 @@ def to_json(k: any, short=False):
 
 
 def from_json(obj: Dict[str, any]) -> any:
-    dtype = obj['dtype']
+    if not isinstance(obj, dict):
+        return obj
+
+    dtype = obj.get('dtype')
 
     if dtype == 'project':
         return Project(
@@ -135,4 +159,4 @@ def from_json(obj: Dict[str, any]) -> any:
                 value=obj['status']['value'])
         )
 
-    raise NotImplementedError()
+    return obj

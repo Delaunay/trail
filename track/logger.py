@@ -10,7 +10,9 @@ from track.aggregators.aggregator import Aggregator
 from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
 from track.aggregators.aggregator import TimeSeriesAggregator
+from track.aggregators.aggregator import ValueAggregator
 from track.persistence.protocol import Protocol
+from track.chrono import ChronoContext
 
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
@@ -39,6 +41,31 @@ def _make_container(step, aggregator):
         return dict()
 
 
+class LoggerChronoContext:
+    def __init__(self, protocol, trial, acc=StatAggregator(), name=None, **kwargs):
+        self.chrono = ChronoContext(acc=acc)
+        self.protocol = protocol
+        self.trial = trial
+        self.args = kwargs
+        self.name = name
+
+    def __enter__(self):
+        v = self.chrono.__enter__()
+        if self.name is None:
+            self.protocol.log_trial_start(self.trial)
+        else:
+            self.protocol.log_trial_chrono_start(self.trial, self.name, **self.args)
+        return v
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.name is None:
+            self.protocol.log_trial_finish(self.trial, exc_type, exc_val, exc_tb)
+        else:
+            self.protocol.log_trial_chrono_finish(self.trial, self.name, exc_type, exc_val, exc_tb)
+
+        return self.chrono.__exit__(exc_type, exc_val, exc_tb)
+
+
 class TrialLogger:
     """ Unified logger interface.
     To log to a specific backend you should pass the desired backend to the constructor """
@@ -46,7 +73,11 @@ class TrialLogger:
     def __init__(self, trial: Trial, protocol: Protocol):
         self.protocol = protocol
         self.trial = trial
-        self.parent_chrono = self.protocol.log_trial_start(self.trial)
+
+        acc = ValueAggregator()
+        self.chronos = dict(runtime=acc)
+
+        self.parent_chrono = LoggerChronoContext(self.protocol, self.trial, acc=acc)
         self.signal_handler = LogSignalHandler(self)
 
     def add_tag(self, key, value):
@@ -71,7 +102,14 @@ class TrialLogger:
                start_callback=None,
                end_callback=None):
 
-        return self.protocol.log_trial_chrono_start(self.trial, name, aggregator, start_callback, end_callback)
+        return LoggerChronoContext(
+            self.protocol,
+            self.trial,
+            acc=aggregator(),
+            name=name,
+            aggregator=aggregator,
+            start_callback=start_callback,
+            end_callback=end_callback)
 
     # Context API for starting the top level chrono
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
