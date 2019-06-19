@@ -1,7 +1,12 @@
 import logging
+import sys
 
 
-logging.basicConfig(format='[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
+logging.basicConfig(
+    format='[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s',
+    stream=sys.stdout,
+    level=logging.INFO)
+
 trail_logger = logging.getLogger('TRACK')
 
 
@@ -15,7 +20,4 @@ debug = trail_logger.debug
 error = trail_logger.error
 critical = trail_logger.critical
 exception = trail_logger.exception
-
-
-set_log_level()
 

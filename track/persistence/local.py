@@ -163,6 +163,17 @@ class FileProtocol(Protocol):
 
         self.storage.objects[trial.uid] = trial
         self.storage.trials.add(trial.uid)
+
+        if trial.project_id is not None:
+            project = self.storage.objects.get(trial.project_id)
+            project.trials.append(trial)
+        else:
+            warning('Orphan trial')
+
+        if trial.group_id is not None:
+            group = self.storage.objects.get(trial.group_id)
+            group.trials.append(trial.uid)
+
         return trial
 
     def add_project_trial(self, project, trial):

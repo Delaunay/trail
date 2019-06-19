@@ -13,6 +13,7 @@ from track.aggregators.aggregator import Aggregator, StatAggregator
 from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
 from track.utils.log import error, warning, info
+from track.utils.throttle import throttle_repeated
 
 from typing import Callable
 
@@ -218,11 +219,9 @@ class SocketClient(Protocol):
         return _check(recv(self.socket))
 
     def new_trial(self, trial: Trial):
-        print(trial)
         kwargs = dict()
         kwargs['__rpc__'] = 'new_trial'
         kwargs['trial'] = to_json(trial)
-        print(kwargs)
         send(self.socket, kwargs)
         return _check(recv(self.socket))
 
@@ -269,6 +268,7 @@ class SocketServer(Protocol):
         self.backend = get_protocol(uri['query'].get('backend'))
         self.authentication = {}
         self.timeout = 10
+        self.client_cache = {}
 
     # https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio
     def run_server(self):
@@ -280,7 +280,7 @@ class SocketServer(Protocol):
         loop.create_task(asyncio.start_server(self.handle_client, sock=sckt))
         loop.run_forever()
 
-    def process_args(self, args):
+    def process_args(self, args, cache=None):
         """ replace ids by their object reference so the backend modifies the objects and not a copy"""
 
         new_args = dict()
@@ -289,44 +289,35 @@ class SocketServer(Protocol):
             if k == 'trial':
                 if isinstance(v, str):
                     hashid, rev = v.split('_')
+                    rev = int(rev)
+
                     v = self.backend.get_trial(Trial(_hash=hashid, revision=rev))
-                    print(v)
-                    if len(v) == 1:
-                        v = v[0]
+                    for i in v:
+                        if i.revision == rev:
+                            v = i
+                            break
+                    else:
+                        warning('Was not able to find the correct trial revision')
 
                 v = from_json(v)
-                # if isinstance(v, Trial):
-                #     a = self.backend.get_trial(v)
-                #
-                #     if a is not None:
-                #         if len(a) == 1:
-                #             v = a[0]
 
             elif k == 'project':
                 if isinstance(v, str):
                     v = self.backend.get_project(Project(name=v))
 
                 v = from_json(v)
-                # if isinstance(v, Project):
-                #     a = self.backend.get_project(v)
-                #     if a is not None:
-                #         v = a
 
             elif k == 'group':
                 if isinstance(v, str):
                     v = self.backend.get_trial_group(TrialGroup(_uid=v))
 
                 v = from_json(v)
-                # if isinstance(v, TrialGroup):
-                #     a = self.backend.get_trial_group(v)
-                #     if a is not None:
-                #         v = a
 
             new_args[k] = v
 
         return new_args
 
-    def exec(self, reader, writer, proc_name, proc, args):
+    def exec(self, reader, writer, proc_name, proc, args, cache=None):
         try:
             new_args = self.process_args(args)
             answer = proc(**new_args)
@@ -347,16 +338,26 @@ class SocketServer(Protocol):
             })
 
     @staticmethod
+    async def wait_closed(writer):
+        try:
+            await writer.wait_closed()
+        # wait_closed is python 3.7+
+        except AttributeError:
+            pass
+
+    @staticmethod
     async def close_connection(writer):
         await writer.drain()
         writer.close()
-        await writer.wait_closed()
+        await SocketServer.wait_closed(writer)
 
     async def handle_client(self, reader, writer):
         info('Client Connected')
         running = True
         count = 0
         sleep_time = 0
+        cache = {}
+        info_proc = throttle_repeated(info, every=10)
 
         while running:
             request = await read(reader)
@@ -367,25 +368,26 @@ class SocketServer(Protocol):
                 sleep_time += 0.01
 
                 if sleep_time > self.timeout:
-                    info(f'Client {self.get_username(reader)} is timing out')
+                    info(f'Client (user: {self.get_username(reader)}) is timing out')
                     await self.close_connection(writer)
+                    self.authentication.pop(reader, None)
                     return None
                 continue
 
             proc_name = request.pop('__rpc__', None)
-            info(f'Processing Request: {proc_name} for {self.get_username(reader)}')
+            info_proc(f'Processing Request: {proc_name} for (user: {self.get_username(reader)})')
 
             if proc_name is None:
-                error(f'Could not process message {request}')
+                error(f'Could not process message (rpc: {request})')
                 write(writer, {
                     'status': 1,
-                    'error': f'Could not process message {request}'
+                    'error': f'Could not process message (rpc: {request})'
                 })
                 continue
 
             elif proc_name == 'authenticate':
                 request['reader'] = reader
-                self.exec(reader, writer, proc_name, self.authenticate, request)
+                self.exec(reader, writer, proc_name, self.authenticate, request, cache=cache)
                 continue
 
             elif not self.is_authenticated(reader):
@@ -400,15 +402,17 @@ class SocketServer(Protocol):
             attr = getattr(self.backend, proc_name)
 
             if attr is None:
-                error(f'{self.backend.__name__} does not implement `{proc_name}`')
+                error(f'{self.backend.__name__} does not implement (rpc: {proc_name})')
                 write(writer, {
                     'status': 1,
-                    'error': f'{self.backend.__name__} does not implement `{proc_name}`'
+                    'error': f'{self.backend.__name__} does not implement (rpc: {proc_name})'
                 })
                 continue
 
-            self.exec(reader, writer, proc_name, attr, request)
+            self.exec(reader, writer, proc_name, attr, request, cache=cache)
             sleep_time = 0
+
+        self.authentication.pop(reader, None)
 
     def get_username(self, reader):
         usr_pwd = self.authentication.get(reader)

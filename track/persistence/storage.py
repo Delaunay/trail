@@ -64,8 +64,6 @@ class LocalStorage:
         with open(file_name_override, 'w') as output:
             json.dump(objects, output, indent=2)
 
-        print(file_name_override)
-
 
 def merge_objects(o1, o2):
     if type(o1) != type(o2):

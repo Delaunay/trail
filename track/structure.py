@@ -66,7 +66,6 @@ class Trial:
 
     @property
     def hash(self):
-        print(self._hash)
         if self._hash is None:
             self._hash = self.compute_hash()
         return self._hash
