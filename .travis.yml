@@ -18,9 +18,6 @@ jobs:
   include:
     - stage: unit-test
       script:
-        - python -m pytest
-    - stage: coverage
-      script:
         - python -m pytest --cov=track tests/
         - codecov
     - stage: pep8

@@ -15,6 +15,7 @@ from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
+from track.utils.partial import partial
 
 
 # Client has a lot of methods on purpose. This is our unified API
@@ -88,7 +89,7 @@ class TrackClient:
         self.protocol.new_trial_group(self.group)
         return self.group
 
-    def _make_trial(self, name=None):
+    def _make_trial(self, arguments, name=None, **kwargs):
         project_id = None
         group_id = None
         if self.project is not None:
@@ -97,12 +98,15 @@ class TrackClient:
         if self.group is not None:
             group_id = self.group.uid
 
-        trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id)
+        trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id, **kwargs)
         trial = self.protocol.new_trial(trial)
         return trial
 
-    def new_trial(self, name=None):
-        self.trial = self._make_trial(name)
+    def new_trial(self, arguments=None, name=None, description=None, **kwargs):
+        if arguments is None:
+            partial(self.new_trial, name=name, description=description, **kwargs)
+
+        self.trial = self._make_trial(arguments, name=name)
         self.logger = TrialLogger(self.trial, self.protocol)
 
         if self.project is not None:
@@ -110,6 +114,8 @@ class TrackClient:
 
         if self.group is not None:
             self.protocol.add_group_trial(self.group, self.trial)
+
+
 
     def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
