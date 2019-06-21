@@ -18,11 +18,17 @@ def make_socket_protocol(uri):
     return SocketClient(uri)
 
 
+def make_cockroach_protocol(uri):
+    from track.persistence.cockroach import Cockroach
+    return Cockroach(uri)
+
+
 _protocols = {
     '__default__': make_local,
     'file': make_local,
     'cometml': make_comet_ml,
-    'socket': make_socket_protocol
+    'socket': make_socket_protocol,
+    'cockroach': make_cockroach_protocol
 }
 
 

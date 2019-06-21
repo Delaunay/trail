@@ -3,9 +3,12 @@ import time
 import subprocess
 import traceback
 import shutil
+
 from multiprocessing import Process, Manager
-from track.utils.log import error
+
+from track.utils.log import error, warning, info
 from track.versioning import compute_version
+
 import signal
 
 
@@ -33,33 +36,43 @@ class CockRoachDB:
 
     def __init__(self, location, addrs, join=None, clean_on_exit=True):
         self.location = location
-        os.makedirs(location, exist_ok=True)
 
         logs = f'{location}/logs'
         temp = f'{location}/tmp'
         external = f'{location}/extern'
         store = location
 
+        os.makedirs(logs, exist_ok=True)
+        os.makedirs(temp, exist_ok=True)
+        os.makedirs(external, exist_ok=True)
+
+        self.location = location
+        self.addrs = addrs
         self.bin = COCKROACH_BIN.get(os.name)
+
+        if self.bin is None:
+            raise RuntimeError('Your OS is not supported')
+
+        if not os.path.exists(self.bin):
+            info('Using system binary')
+            self.bin = 'cockroach'
+        else:
+            hash = COCKROACH_HASH.get(os.name)
+            if compute_version([self.bin]) != hash:
+                warning('Binary Hashes do not match')
+
         self.arguments = [
             'start', '--insecure',
             f'--listen-addr={addrs}',
             f'--external-io-dir={external}',
             f'--store={store}',
             f'--temp-dir={temp}',
-            f'--log-dir={logs}'
+            f'--log-dir={logs}',
+            f'--pid-file={location}/cockroach_pid'
         ]
 
         if join is not None:
             self.arguments.append(f'--join={join}')
-
-        hash = COCKROACH_HASH.get(os.name)
-
-        if compute_version([self.bin]) != hash:
-            raise RuntimeError('Binary Hashes do not match')
-
-        if self.bin is None:
-            raise RuntimeError(f'{os.name} is not supported')
 
         self.manager: Manager = Manager()
         self.properties = self.manager.dict()
@@ -69,13 +82,14 @@ class CockRoachDB:
 
     def _start(self, properties):
         kwargs = dict(
-            args=[self.bin] + self.arguments,
+            args=' '.join([self.bin] + self.arguments),
             stdout=subprocess.PIPE,
             bufsize=1,
             stderr=subprocess.STDOUT
         )
 
-        with subprocess.Popen(**kwargs) as proc:
+        print(kwargs)
+        with subprocess.Popen(**kwargs, shell=True) as proc:
             try:
                 properties['running'] = True
                 properties['pid'] = proc.pid
@@ -102,8 +116,36 @@ class CockRoachDB:
 
         # wait for all the properties to be populated
         if wait:
-            while self.properties.get('nodeID') is None:
+            while self.properties.get('nodeID') is None and self._process.is_alive():
                 time.sleep(0.01)
+
+        self.properties['db_pid'] = int(open(f'{self.location}/cockroach_pid', 'r').read())
+        self._setup()
+
+    def _setup(self, client='track_client'):
+        out = subprocess.check_output(f'{self.bin} user set {client} --insecure --host={self.addrs}', shell=True)
+        info(out.decode('utf8').strip())
+
+        create_db = f"""
+        CREATE DATABASE IF NOT EXISTS track;
+        SET DATABASE = track;
+        GRANT ALL ON DATABASE track TO {client};
+        CREATE TABLE IF NOT EXISTS track.projects (
+            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
+            project JSONB
+        );
+        CREATE TABLE IF NOT EXISTS track.trials (
+            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
+            trial JSONB
+        );
+        CREATE TABLE IF NOT EXISTS track.trial_groups (
+            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
+            trial_group JSONB
+        );
+        """.encode('utf8')
+
+        out = subprocess.check_output(f'{self.bin} sql --insecure --host={self.addrs}', input=create_db, shell=True)
+        info(out.decode('utf8').strip())
 
     def stop(self):
         self.properties['running'] = False
@@ -114,8 +156,18 @@ class CockRoachDB:
         # you need to kill it with fire
         os.kill(self.properties['pid'], signal.SIGTERM)
 
+        if self._process.is_alive():
+            os.kill(self.properties['pid'], signal.SIGKILL)
+
+        # cockroach db outlive the parent shell...
+        # so we kill the actual process as well
+        os.kill(self.properties['db_pid'], signal.SIGTERM)
         if self.clean_on_exit:
             shutil.rmtree(self.location)
+
+    def wait(self):
+        while True:
+            time.sleep(0.01)
 
     def __enter__(self):
         self.start()
@@ -134,6 +186,7 @@ class CockRoachDB:
 
         except Exception as e:
             print(e, line, end='\n')
+            print(traceback.format_exc())
 
     # properties that are populated once the server has started
     @property
@@ -168,4 +221,5 @@ if __name__ == '__main__':
     for k, v in db.properties.items():
         print(k, v)
 
-    db.stop()
+    # db.stop()
+    db.wait()
