@@ -78,9 +78,6 @@ class TrialLogger:
         self.parent_chrono = LoggerChronoContext(self.protocol, self.trial, acc=acc)
         self.signal_handler = LogSignalHandler(self)
 
-    def add_tag(self, key, value):
-        self.trial.tags[key] = value
-
     def log_arguments(self, **kwargs):
         self.protocol.log_trial_arguments(self.trial, **kwargs)
 

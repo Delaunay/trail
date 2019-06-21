@@ -9,20 +9,18 @@ def test_trial():
     client.set_project(name='ConvnetTest', description='Trail test example')
     client.set_group(name='test_group')
 
-    trial = client.new_trial()
+    logger = client.new_trial()
     client.get_arguments({'a': 1})
 
-    uid1 = trial.trial.hash
+    uid1 = logger.trial.hash
 
-    trial = client.new_trial()
+    logger = client.new_trial()
     client.get_arguments({'a': 2})
 
-    uid2 = trial.trial.hash
+    uid2 = logger.trial.hash
 
-    print(uid1, uid2)
+    assert uid1 != uid2, 'Trials with different parameters must have different hash'
 
 
 if __name__ == '__main__':
-
-    pdb.set_trace()
     test_trial()

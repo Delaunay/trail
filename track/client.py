@@ -99,7 +99,14 @@ class TrackClient:
         if self.group is not None:
             group_id = self.group.uid
 
-        trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id, **kwargs)
+        trial = Trial(
+            name=name,
+            version=self.version(),
+            project_id=project_id,
+            group_id=group_id,
+            parameters=arguments,
+            **kwargs)
+
         trial = self.protocol.new_trial(trial)
         return trial
 
@@ -108,7 +115,7 @@ class TrackClient:
         # wait for the user to be able to specify the parameters so we can have a meaningful hash
         if arguments is None:
             self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
-            return None
+            return self.trial.get_future()
 
         self.trial = self._make_trial(arguments, name=name)
         self.logger = TrialLogger(self.trial, self.protocol)
@@ -121,6 +128,17 @@ class TrackClient:
 
         return self.logger
 
+    def add_tags(self, **kwargs):
+        # We do not need to create the trial to add tags.
+        # just append the tags to the trial call when it is going to be created
+        if is_delayed_call(self.trial):
+            self.trial.add_arguments(**kwargs)
+        else:
+            self.logger.add_tags(**kwargs)
+
+    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
+        return self.log_arguments(args, show, **kwargs)
+
     def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
 
@@ -132,11 +150,12 @@ class TrackClient:
             nargs = dict(**vars(nargs))
 
         kwargs.update(nargs)
-        self.logger.log_arguments(**kwargs)
 
         # if we have a pending trial create it now as we have all the information
         if is_delayed_call(self.trial):
-            self.trial(**kwargs)
+            self.trial(arguments=kwargs)
+
+        self.logger.log_arguments(**kwargs)
 
         if show:
             print('-' * 80)

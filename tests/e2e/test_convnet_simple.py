@@ -49,7 +49,7 @@ def test_e2e_server_socket():
 def test_e2e_cometml():
     if SKIP_COMET:
         return
-    
+
     end_to_end_train('cometml:/convnet-test/convnet')
 
 
