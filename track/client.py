@@ -1,6 +1,6 @@
 import json
 import inspect
-from typing import Union, Callable
+from typing import Union, Callable, Dict
 
 from argparse import ArgumentParser, Namespace
 
@@ -111,13 +111,21 @@ class TrackClient:
         if self.group is not None:
             self.protocol.add_group_trial(self.group, self.trial)
 
-    def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
+        return self.logger
+
+    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
 
+        kwargs = {}
+        nargs = args
         if isinstance(args, ArgumentParser):
-            args = args.parse_args()
+            nargs = args.parse_args()
 
-        self.logger.log_arguments(args)
+        if isinstance(nargs, Namespace):
+            nargs = dict(**vars(nargs))
+
+        kwargs.update(nargs)
+        self.logger.log_arguments(**kwargs)
 
         if show:
             print('-' * 80)

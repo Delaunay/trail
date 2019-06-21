@@ -83,10 +83,7 @@ class TrialLogger:
     def add_tag(self, key, value):
         self.trial.tags[key] = value
 
-    def log_arguments(self, args: Namespace = None, **kwargs):
-        if args is not None:
-            kwargs.update(dict(**vars(args)))
-
+    def log_arguments(self, **kwargs):
         self.protocol.log_trial_arguments(self.trial, **kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
@@ -147,5 +144,4 @@ class TrialLogger:
 
     def set_group(self, group):
         pass
-
 
