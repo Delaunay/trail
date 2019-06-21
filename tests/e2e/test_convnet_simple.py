@@ -1,4 +1,6 @@
 from track import TrackClient
+from track.persistence.socketed import start_track_server
+from multiprocessing import Process
 
 import sys
 import torch
@@ -14,7 +16,34 @@ import argparse
 sys.stderr = sys.stdout
 
 
-def test_end_to_end():
+def test_e2e_file():
+    end_to_end_train('file://file_test.json')
+
+
+def test_e2e_server_socket():
+    import socket
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', 0))
+    port = s.getsockname()[1]
+    s.close()
+
+    print('Starting Server')
+    #start_track_server('file://server_test.json', 'localhost', port)
+
+    server = Process(target=start_track_server('file://server_test.json', 'localhost', port))
+    server.start()
+
+    print('Starting client')
+
+    end_to_end_train(f'socket://test:123@localhost:{port}')
+
+
+def test_e2e_cometml():
+    end_to_end_train('cometml:/convnet-test/convnet')
+
+
+def end_to_end_train(backend):
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
     parser.add_argument('--batch-size', '-b', type=int, help='batch size', default=32)
@@ -34,7 +63,7 @@ def test_end_to_end():
 
     # ----
 
-    trial = TrackClient(backend='file://test.json')
+    trial = TrackClient(backend=backend)
     trial.set_project(name='ConvnetTest', description='Trail test example')
     trial.set_group(name='test_group')
     trial.new_trial()
@@ -147,18 +176,19 @@ def test_end_to_end():
         except StopIteration:
             return None
 
-    trial.set_eta_total((args.epochs, len(train_loader)))
+    batch_count = len(train_loader)
+    trial.set_eta_total((args.epochs, batch_count))
 
     with trial:
         model.train()
         for epoch in range(args.epochs):
             batch_iter = iter(train_loader)
 
-            with trial.chrono('epoch_time') as epoch_time:
+            with trial.chrono('epoch_time'):
                 batch_id = 0
                 epoch_loss = 0
                 while True:
-                    with trial.chrono('batch_time'):
+                    with trial.chrono('batch_time') as batch_time:
 
                         with trial.chrono('batch_wait'):
                             batch = next_batch(batch_iter)
@@ -172,7 +202,8 @@ def test_end_to_end():
                             output = model(input)
                             loss = criterion(output, target)
 
-                            epoch_loss += loss.item()
+                            batch_loss = loss.item()
+                            epoch_loss += batch_loss
                             # trial.log_metrics(step=(epoch, batch_id), loss=loss.item())
 
                             # compute gradient and do SGD step
@@ -185,9 +216,11 @@ def test_end_to_end():
                             optimizer.step()
                             batch_id += 1
                     # ---
-                    epoch_loss /= len(train_loader)
-                    trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
-                    trial.show_eta((epoch, batch_id), epoch_time, throttle=100)
+                    # trial.log_metrics(step=epoch * batch_count + batch_id, batc_loss=batch_loss)
+                    trial.show_eta((epoch, batch_id), batch_time, throttle=100)
+
+            epoch_loss /= batch_count
+            trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
                 # ---
 
     trial.report()
@@ -195,4 +228,6 @@ def test_end_to_end():
 
 
 if __name__ == '__main__':
-    test_end_to_end()
+    # test_e2e_server_socket()
+
+    end_to_end_train(f'socket://test:123@localhost:37382')

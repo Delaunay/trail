@@ -1,16 +1,18 @@
 from typing import Callable
 
-from track.chrono import ChronoContext
 from track.utils.log import error, warning
 from track.structure import Project, Trial, TrialGroup
 from track.persistence.protocol import Protocol
 from track.persistence.storage import load_database, LocalStorage
+from track.persistence.utils import parse_uri
 from track.containers.types import float32
 from track.aggregators.aggregator import Aggregator
 from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
 from track.aggregators.aggregator import ValueAggregator
 from track.aggregators.aggregator import TimeSeriesAggregator
+
+import time
 
 
 ring_aggregator = RingAggregator.lazy(10, float32)
@@ -30,16 +32,28 @@ def _make_container(step, aggregator):
 
 class FileProtocol(Protocol):
 
-    def __init__(self, file_name):
-        self.storage: LocalStorage = load_database(file_name)
+    def __init__(self, uri):
+        uri = parse_uri(uri)
+
+        # file:test.json
+        path = uri.get('path')
+
+        if not path:
+            # file://test.json
+            path = uri.get('address')
+
+        self.storage: LocalStorage = load_database(path)
+        self.chronos = {}
 
     def log_trial_start(self, trial):
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
-        return ChronoContext('runtime', acc)
+        self.chronos['runtime'] = time.time()
 
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
-        pass
+        start_time = self.chronos['runtime']
+        acc = trial.chronos['runtime']
+        acc.append(time.time() - start_time)
 
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
         for k, v in kwargs.items():
@@ -58,10 +72,13 @@ class FileProtocol(Protocol):
         if agg is None:
             agg = aggregator()
             trial.chronos[name] = agg
-        return ChronoContext(name, agg, start_callback=start_callback, end_callback=end_callback)
+
+        self.chronos[name] = time.time()
 
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
-        pass
+        start_time = self.chronos[name]
+        acc = trial.chronos[name]
+        acc.append(time.time() - start_time)
 
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         for k, v in kwargs.items():
@@ -146,6 +163,17 @@ class FileProtocol(Protocol):
 
         self.storage.objects[trial.uid] = trial
         self.storage.trials.add(trial.uid)
+
+        if trial.project_id is not None:
+            project = self.storage.objects.get(trial.project_id)
+            project.trials.append(trial)
+        else:
+            warning('Orphan trial')
+
+        if trial.group_id is not None:
+            group = self.storage.objects.get(trial.group_id)
+            group.trials.append(trial.uid)
+
         return trial
 
     def add_project_trial(self, project, trial):
@@ -156,5 +184,5 @@ class FileProtocol(Protocol):
         trial.group_id = group.uid
         group.trials.append(trial.uid)
 
-    def commit(self, file_name_override, **kwargs):
+    def commit(self, file_name_override=None, **kwargs):
         self.storage.commit(file_name_override=file_name_override, **kwargs)

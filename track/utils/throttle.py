@@ -1,5 +1,6 @@
 import time
-from typing import Callable, TypeVar, Optional
+from collections import defaultdict
+from typing import Callable, TypeVar, Optional, Tuple, Dict
 
 A = TypeVar('A')  # Arguments
 R = TypeVar('R')  # Return Type
@@ -41,6 +42,23 @@ class TimeThrottler:
         return None
 
 
+class ThrottleRepeatedCalls:
+    def __init__(self, fun: Callable[[A], R], every=10):
+        self.fun = fun
+        self.last_time: Dict[Tuple, float] = dict()
+        self.every: float = every
+
+    def __call__(self, *args, **kwargs) -> Optional[R]:
+        now = time.time()
+        elapsed = now - self.last_time.get(args, 0)
+
+        if elapsed > self.every:
+            self.last_time[args] = now
+            return self.fun(*args, **kwargs)
+
+        return None
+
+
 def throttled(fun: Callable[[A], R], throttle=None, every=None) -> Callable[[A], Optional[R]]:
     if throttle is None and every is None:
         return fun
@@ -48,6 +66,10 @@ def throttled(fun: Callable[[A], R], throttle=None, every=None) -> Callable[[A],
         return Throttler(fun, throttle)
 
     return TimeThrottler(fun, every)
+
+
+def throttle_repeated(fun: Callable[[A], R], every=None) -> Callable[[A], Optional[R]]:
+    return ThrottleRepeatedCalls(fun, every)
 
 
 def is_throttled(fun: Callable[[A], R]) -> bool:

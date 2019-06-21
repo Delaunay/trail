@@ -4,6 +4,7 @@ from track.utils.log import warning, info
 
 _config_file = None
 _configuration = None
+_warning_was_printed = False
 
 
 def _look_for_configuration(file_name='track.config'):
@@ -24,7 +25,7 @@ def _look_for_configuration(file_name='track.config'):
 
     if len(files) > 1:
         warning(f'found multiple configuration file: {", ".join(files)}')
-    else:
+    elif config_file is not None:
         info(f'loading configuration from {config_file}')
 
     return config_file
@@ -32,9 +33,12 @@ def _look_for_configuration(file_name='track.config'):
 
 def _load_config_file(file):
     global _configuration
+    global _warning_was_printed
 
     if file is None:
-        warning('No configuration file found')
+        if not _warning_was_printed:
+            warning('No configuration file found')
+            _warning_was_printed = True
         return
 
     with open(file, 'r') as cfile:

@@ -9,8 +9,7 @@ class ChronoContext:
         This is useful when timing async calls like cuda calls
     """
 
-    def __init__(self, name: str, acc: Aggregator, start_callback: Callable = None, end_callback: Callable = None):
-        self.name = name
+    def __init__(self, acc: Aggregator, start_callback: Callable = None, end_callback: Callable = None):
         self.accumulator = acc
         self.start = 0
         self.end = 0

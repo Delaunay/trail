@@ -99,7 +99,6 @@ class TrackClient:
 
         trial = Trial(name=name, version=self.version(), project_id=project_id, group_id=group_id)
         trial = self.protocol.new_trial(trial)
-
         return trial
 
     def new_trial(self, name=None):
