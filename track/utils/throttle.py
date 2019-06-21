@@ -1,5 +1,4 @@
 import time
-from collections import defaultdict
 from typing import Callable, TypeVar, Optional, Tuple, Dict
 
 A = TypeVar('A')  # Arguments
