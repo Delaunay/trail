@@ -5,7 +5,7 @@
 
 
 """
-
+from track.utils.signal import SignalHandler
 from track.persistence.protocol import Protocol
 from track.persistence.utils import parse_uri
 from track.utils import open_socket, listen_socket
@@ -435,6 +435,18 @@ class SocketServer(Protocol):
         self.backend.commit(**kwargs)
 
 
+class ServerSignalHandler(SignalHandler):
+    def __init__(self, server):
+        super(ServerSignalHandler, self).__init__()
+        self.server = server
+
+    def sigterm(self, signum, frame):
+        self.server.commit()
+
+    def sigint(self, signum, frame):
+        self.server.commit()
+
+
 def start_track_server(protocol, hostname, port):
     """
 
@@ -450,14 +462,15 @@ def start_track_server(protocol, hostname, port):
     :return:
     """
     server = SocketServer(f'socket://{hostname}:{port}?backend={protocol}')
+    _ = ServerSignalHandler(server)
 
     try:
         server.run_server()
     except KeyboardInterrupt as e:
-        server.commit()
+        # server.commit()
         raise e
     except Exception as e:
-        server.commit()
+        # server.commit()
         raise e
 
 

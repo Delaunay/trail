@@ -1,9 +1,7 @@
-from argparse import Namespace
 from typing import Callable
 
 from track.containers.types import float32
 from track.structure import Trial, Status
-
 from track.utils.signal import SignalHandler
 
 from track.aggregators.aggregator import Aggregator
@@ -83,10 +81,7 @@ class TrialLogger:
     def add_tag(self, key, value):
         self.trial.tags[key] = value
 
-    def log_arguments(self, args: Namespace = None, **kwargs):
-        if args is not None:
-            kwargs.update(dict(**vars(args)))
-
+    def log_arguments(self, **kwargs):
         self.protocol.log_trial_arguments(self.trial, **kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
@@ -147,5 +142,4 @@ class TrialLogger:
 
     def set_group(self, group):
         pass
-
 

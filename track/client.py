@@ -1,6 +1,6 @@
 import json
 import inspect
-from typing import Union, Callable
+from typing import Union, Callable, Dict
 
 from argparse import ArgumentParser, Namespace
 
@@ -15,7 +15,8 @@ from track.versioning import default_version_hash
 from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
-from track.utils.partial import partial
+from track.utils.delay import delay_call, is_delayed_call
+from track.utils.log import warning
 
 
 # Client has a lot of methods on purpose. This is our unified API
@@ -103,8 +104,11 @@ class TrackClient:
         return trial
 
     def new_trial(self, arguments=None, name=None, description=None, **kwargs):
+        # if arguments are not specified do not create the trial just yet
+        # wait for the user to be able to specify the parameters so we can have a meaningful hash
         if arguments is None:
-            partial(self.new_trial, name=name, description=description, **kwargs)
+            self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
+            return None
 
         self.trial = self._make_trial(arguments, name=name)
         self.logger = TrialLogger(self.trial, self.protocol)
@@ -115,15 +119,24 @@ class TrackClient:
         if self.group is not None:
             self.protocol.add_group_trial(self.group, self.trial)
 
+        return self.logger
 
-
-    def get_arguments(self, args: Union[ArgumentParser, Namespace], show=False) -> Namespace:
+    def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
 
+        nargs = args
         if isinstance(args, ArgumentParser):
-            args = args.parse_args()
+            nargs = args.parse_args()
 
-        self.logger.log_arguments(args)
+        if isinstance(nargs, Namespace):
+            nargs = dict(**vars(nargs))
+
+        kwargs.update(nargs)
+        self.logger.log_arguments(**kwargs)
+
+        # if we have a pending trial create it now as we have all the information
+        if is_delayed_call(self.trial):
+            self.trial(**kwargs)
 
         if show:
             print('-' * 80)
@@ -135,6 +148,10 @@ class TrackClient:
 
     def __getattr__(self, item):
         """ try to use the backend attributes if not available """
+
+        if is_delayed_call(self.trial):
+            warning('Creating a trial without parameters!')
+            self.trial()
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):

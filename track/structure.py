@@ -66,6 +66,13 @@ class Trial:
 
     @property
     def hash(self):
+        import inspect
+        stack = inspect.stack()
+        stack.reverse()
+        print('Compute Hash')
+        for s in stack:
+            print('   ', f'{s.filename.split("/")[-1]:>20}:', s.function)
+
         if self._hash is None:
             self._hash = self.compute_hash()
         return self._hash
