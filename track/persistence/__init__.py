@@ -9,9 +9,9 @@ def make_comet_ml(uri):
     return CometMLProtocol(uri)
 
 
-def make_local(uri):
+def make_local(uri, strict):
     from track.persistence.local import FileProtocol
-    return FileProtocol(uri)
+    return FileProtocol(uri, strict)
 
 
 def make_socket_protocol(uri):
@@ -45,7 +45,7 @@ def get_protocol(backend_name):
         log = _protocols.get('__default__')
 
     return ProtocolMultiplexer(
-        make_local('file:'),        # Make a file Protocol to log everything in memory as well as remotely
+        make_local('file:', strict=False),  # Make a file Protocol to log everything in memory as well as remotely
         log(backend_name)
     )
 

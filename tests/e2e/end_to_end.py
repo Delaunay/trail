@@ -44,7 +44,11 @@ def end_to_end_train(backend):
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')
 
-    args = trial.get_arguments(parser.parse_args([]), show=True)
+    args = parser.parse_args([])
+    if torch.cuda.is_available():
+        args.batch_size = 4096
+
+    args = trial.get_arguments(args, show=True)
     device = trial.get_device()
 
     try:

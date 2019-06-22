@@ -32,7 +32,7 @@ def _make_container(step, aggregator):
 
 class FileProtocol(Protocol):
 
-    def __init__(self, uri):
+    def __init__(self, uri, strict=True):
         uri = parse_uri(uri)
 
         # file:test.json
@@ -44,6 +44,7 @@ class FileProtocol(Protocol):
 
         self.storage: LocalStorage = load_database(path)
         self.chronos = {}
+        self.strict = strict
 
     def log_trial_start(self, trial):
         acc = ValueAggregator()
@@ -118,6 +119,7 @@ class FileProtocol(Protocol):
         self.storage.objects[project.uid] = project
         self.storage.project_names[project.name] = project.uid
         self.storage.projects.add(project.uid)
+        return project
 
     def get_trial_group(self, group: TrialGroup):
         return self.storage.objects.get(group.uid)
@@ -135,6 +137,7 @@ class FileProtocol(Protocol):
         self.storage.objects[group.uid] = group
         self.storage.groups.add(group.uid)
         self.storage.group_names[group.name] = group.uid
+        return group
 
     def get_trial(self, trial: Trial):
         trials = []
@@ -166,13 +169,16 @@ class FileProtocol(Protocol):
 
         if trial.project_id is not None:
             project = self.storage.objects.get(trial.project_id)
-            project.trials.append(trial)
+
+            if project is not None or self.strict:
+                project.trials.append(trial)
         else:
             warning('Orphan trial')
 
         if trial.group_id is not None:
             group = self.storage.objects.get(trial.group_id)
-            group.trials.append(trial.uid)
+            if group is not None or self.strict:
+                group.trials.append(trial.uid)
 
         return trial
 
@@ -181,6 +187,9 @@ class FileProtocol(Protocol):
         project.trials.append(trial)
 
     def add_group_trial(self, group, trial):
+        if group is None and not self.strict:
+            return
+
         trial.group_id = group.uid
         group.trials.append(trial.uid)
 

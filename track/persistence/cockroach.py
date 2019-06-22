@@ -196,8 +196,14 @@ class Cockroach(Protocol):
         if r is None:
             return r
 
+        def process_tags(value, default=lambda: list()):
+            if value is None:
+                return default()
+            return [self.decode_uid(t) for t in value]
+
         return TrialGroup(_uid=self.decode_uid(r[0]), name=r[1], description=r[2],
-                          tags=self.deserialize(r[3]), trials=r[4], project_id=self.decode_uid(r[5]))
+                          tags=self.deserialize(r[3]),
+                          trials=process_tags(r[4]), project_id=self.decode_uid(r[5]))
 
     def new_trial_group(self, group: TrialGroup):
         try:
