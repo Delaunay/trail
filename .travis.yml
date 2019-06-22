@@ -22,7 +22,7 @@ jobs:
   include:
     - stage: unit-test
       script:
-        - travis_wait python -m pytest --cov=track tests/
+        - travis_wait 30 python -m pytest --cov=track tests/
         - codecov
     - stage: pep8
       script:
