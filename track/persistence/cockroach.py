@@ -147,6 +147,12 @@ class Cockroach(Protocol):
             self.serialize(trial.tags), self.encode_uid(trial.uid)
         ))
 
+    @staticmethod
+    def process_uuid_array(value, default=lambda: list()):
+        if value is None:
+            return default()
+        return [Cockroach.decode_uid(t) for t in value]
+
     # Object Creation
     def get_project(self, project: Project):
         self.cursor.execute("""
@@ -162,8 +168,14 @@ class Cockroach(Protocol):
         if r is None:
             return r
 
-        return Project(_uid=self.decode_uid(r[0]),
-                       name=r[1], description=r[2], tags=self.deserialize(r[3]), groups=r[4], trials=r[5])
+        return Project(
+            _uid=self.decode_uid(r[0]),
+            name=r[1],
+            description=r[2],
+            tags=self.deserialize(r[3]),
+            groups=self.process_uuid_array(r[4]),
+            trials=self.process_uuid_array(r[5])
+        )
 
     def new_project(self, project: Project):
         try:
@@ -196,14 +208,13 @@ class Cockroach(Protocol):
         if r is None:
             return r
 
-        def process_tags(value, default=lambda: list()):
-            if value is None:
-                return default()
-            return [self.decode_uid(t) for t in value]
-
-        return TrialGroup(_uid=self.decode_uid(r[0]), name=r[1], description=r[2],
-                          tags=self.deserialize(r[3]),
-                          trials=process_tags(r[4]), project_id=self.decode_uid(r[5]))
+        return TrialGroup(
+            _uid=self.decode_uid(r[0]),
+            name=r[1],
+            description=r[2],
+            tags=self.deserialize(r[3]),
+            trials=self.process_uuid_array(r[4]),
+            project_id=self.decode_uid(r[5]))
 
     def new_trial_group(self, group: TrialGroup):
         try:
@@ -290,7 +301,7 @@ class Cockroach(Protocol):
             revision=r[1],
             name=r[2],
             description=r[3],
-            tags=r[4],
+            tags=self.deserialize(r[4]),
             version=r[5],
             group_id=self.decode_uid(r[6]),
             project_id=self.decode_uid(r[7]),
