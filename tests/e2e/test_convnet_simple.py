@@ -53,6 +53,21 @@ def test_e2e_cometml():
     end_to_end_train('cometml:/convnet-test/convnet')
 
 
+def test_e2e_cockroach():
+    from track.distributed.cockroachdb import CockRoachDB
+
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8123')
+    db.start(wait=True)
+
+    try:
+        end_to_end_train('cockroach://localhost:8123')
+    except Exception as e:
+        raise e
+
+    finally:
+        db.stop()
+
+
 def end_to_end_train(backend):
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
@@ -240,4 +255,5 @@ def end_to_end_train(backend):
 if __name__ == '__main__':
     # test_e2e_server_socket()
 
-    end_to_end_train(f'socket://test:123@localhost:37382')
+    # end_to_end_train(f'socket://test:123@localhost:37382')
+    test_e2e_cockroach()
