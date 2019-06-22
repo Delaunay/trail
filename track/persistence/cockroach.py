@@ -3,6 +3,8 @@ from track.persistence.utils import parse_uri
 from track.aggregators.aggregator import Aggregator, StatAggregator
 from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
+from track.utils.log import info
+
 import json
 import time
 
@@ -164,18 +166,21 @@ class Cockroach(Protocol):
                        name=r[1], description=r[2], tags=self.deserialize(r[3]), groups=r[4], trials=r[5])
 
     def new_project(self, project: Project):
-        self.cursor.execute("""
-            INSERT INTO 
-                track.projects (uid, name, description, tags) 
-            VALUES 
-                (%s, %s, %s, %s);
-            """, (
-            project.uid,
-            project.name,
-            project.description,
-            self.serialize(project.tags),
-        ))
-        return project
+        try:
+            self.cursor.execute("""
+                INSERT INTO 
+                    track.projects (uid, name, description, tags) 
+                VALUES 
+                    (%s, %s, %s, %s);
+                """, (
+                project.uid,
+                project.name,
+                project.description,
+                self.serialize(project.tags),
+            ))
+            return project
+        except psycopg2.errors.UniqueViolation:
+            return self.get_project(project)
 
     def get_trial_group(self, group: TrialGroup):
         self.cursor.execute("""
@@ -195,22 +200,24 @@ class Cockroach(Protocol):
                           tags=self.deserialize(r[3]), trials=r[4], project_id=self.decode_uid(r[5]))
 
     def new_trial_group(self, group: TrialGroup):
-        self.cursor.execute("""
-            INSERT INTO 
-                track.trial_groups (uid, name, description, tags, project_id) 
-            VALUES 
-                (%s, %s, %s, %s, %s);
-            """, (
-            group.uid.encode('utf8'),
-            group.name,
-            group.description,
-            self.serialize(group.tags),
-            group.project_id.encode('utf8')
-        ))
-        return group
+        try:
+            self.cursor.execute("""
+                INSERT INTO 
+                    track.trial_groups (uid, name, description, tags, project_id) 
+                VALUES 
+                    (%s, %s, %s, %s, %s);
+                """, (
+                group.uid.encode('utf8'),
+                group.name,
+                group.description,
+                self.serialize(group.tags),
+                group.project_id.encode('utf8')
+            ))
+            return group
+        except psycopg2.errors.UniqueViolation:
+            return self.get_trial_group(group)
 
     def add_project_trial(self, project: Project, trial: Trial):
-        self.con.set_session(autocommit=False)
         self.cursor.execute("""
             UPDATE track.projects
             SET 
@@ -231,11 +238,8 @@ class Cockroach(Protocol):
             self.encode_uid(project.uid),
             self.encode_uid(trial.uid)
         ))
-        self.con.commit()
-        self.con.set_session(autocommit=True)
 
     def add_group_trial(self, group: TrialGroup, trial: Trial):
-        self.con.set_session(autocommit=False)
         self.cursor.execute("""
             UPDATE track.trial_groups
             SET 
@@ -256,8 +260,6 @@ class Cockroach(Protocol):
             self.encode_uid(group.uid),
             self.encode_uid(trial.uid)
         ))
-        self.con.commit()
-        self.con.set_session(autocommit=True)
 
     def commit(self, **kwargs):
         pass
@@ -291,25 +293,31 @@ class Cockroach(Protocol):
             errors=r[10])
 
     def new_trial(self, trial: Trial):
-        self.cursor.execute("""
-            INSERT INTO 
-                track.trials (uid, hash, revision, name, description, 
-                tags, version, project_id, group_id, parameters) 
-            VALUES 
-                (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """, (
-            trial.uid,
-            trial.hash,
-            trial.revision,
-            trial.name,
-            trial.description,
-            self.serialize(trial.tags),
-            trial.version,
-            self.encode_uid(trial.project_id),
-            self.encode_uid(trial.group_id),
-            self.serialize(trial.parameters)
-        ))
-        return trial
+        try:
+            self.cursor.execute("""
+                INSERT INTO 
+                    track.trials (uid, hash, revision, name, description, 
+                    tags, version, project_id, group_id, parameters) 
+                VALUES 
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """, (
+                trial.uid,
+                trial.hash,
+                trial.revision,
+                trial.name,
+                trial.description,
+                self.serialize(trial.tags),
+                trial.version,
+                self.encode_uid(trial.project_id),
+                self.encode_uid(trial.group_id),
+                self.serialize(trial.parameters)
+            ))
+            return trial
+
+        except psycopg2.errors.UniqueViolation:
+            trial.revision += 1
+            info(f'Trial already exist increasing revision (rev: {trial.revision})')
+            return self.new_trial(trial)
 
     @staticmethod
     def encode_uid(uid):

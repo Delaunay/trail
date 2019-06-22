@@ -6,7 +6,7 @@ import shutil
 
 from multiprocessing import Process, Manager
 
-from track.utils.log import error, warning, info
+from track.utils.log import error, warning, info, debug
 from track.versioning import compute_version
 
 import signal
@@ -123,7 +123,7 @@ class CockRoachDB:
 
     def _setup(self, client='track_client'):
         out = subprocess.check_output(f'{self.bin} user set {client} --insecure --host={self.addrs}', shell=True)
-        info(out.decode('utf8').strip())
+        debug(out.decode('utf8').strip())
 
         create_db = f"""
         CREATE DATABASE IF NOT EXISTS track;
@@ -169,7 +169,7 @@ class CockRoachDB:
         """.encode('utf8')
 
         out = subprocess.check_output(f'{self.bin} sql --insecure --host={self.addrs}', input=create_db, shell=True)
-        info(out.decode('utf8').strip())
+        debug(out.decode('utf8').strip())
 
     def stop(self):
         self.properties['running'] = False
