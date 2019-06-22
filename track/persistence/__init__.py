@@ -1,5 +1,6 @@
 from track.utils.log import warning
 from track.persistence.utils import parse_uri
+from track.persistence.multiplexer import ProtocolMultiplexer
 
 
 def make_comet_ml(uri):
@@ -43,7 +44,10 @@ def get_protocol(backend_name):
         warning(f'Logger (backend: {backend_name}) was not found!')
         log = _protocols.get('__default__')
 
-    return log(backend_name)
+    return ProtocolMultiplexer(
+        make_local('file:'),        # Make a file Protocol to log everything in memory as well as remotely
+        log(backend_name)
+    )
 
 
 if __name__ == '__main__':

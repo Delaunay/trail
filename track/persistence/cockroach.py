@@ -20,10 +20,10 @@ class Cockroach(Protocol):
             database='track',
             user=uri.get('username', 'track_client'),
             password=uri.get('password', 'track_password'),
-            #sslmode='require',
-            #sslrootcert='certs/ca.crt',
-            #sslkey='certs/client.maxroach.key',
-            #sslcert='certs/client.maxroach.crt',
+            # sslmode='require',
+            # sslrootcert='certs/ca.crt',
+            # sslkey='certs/client.maxroach.key',
+            # sslcert='certs/client.maxroach.crt',
             port=uri['port'],
             host=uri['address']
         )
