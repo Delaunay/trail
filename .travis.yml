@@ -14,7 +14,8 @@ install:
   - pip install https://download.pytorch.org/whl/cpu/torch-1.1.0-cp36-cp36m-linux_x86_64.whl
   - pip install https://download.pytorch.org/whl/cpu/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
   - wget -qO- https://binaries.cockroachdb.com/cockroach-v19.1.2.linux-amd64.tgz | tar  xvz
-  - cp -i cockroach-v19.1.2.linux-amd64/cockroach /usr/local/bin
+  - cp -i cockroach-v19.1.2.linux-amd64/cockroach .
+  - export PATH="$PATH:."
 
 jobs:
   include:
