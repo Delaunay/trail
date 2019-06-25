@@ -33,5 +33,5 @@ if __name__ == '__main__':
             'git+git://github.com/Delaunay/benchutils@master#egg=benchutils'
         ],
         setup_requires=['setuptools'],
-        tests_require=['pytest', 'flake8'],
+        tests_require=['pytest', 'flake8', 'codecov', 'pytest-cov'],
     )
