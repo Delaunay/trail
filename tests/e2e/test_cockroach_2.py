@@ -8,11 +8,11 @@ import pytest
 def test_e2e_cockroach_2clients(count=2):
     from track.distributed.cockroachdb import CockRoachDB
 
-    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8123')
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8124')
     db.start(wait=True)
 
     try:
-        uri = 'cockroach://localhost:8123'
+        uri = 'cockroach://localhost:8124'
 
         clients = [Process(target=end_to_end_train, args=(uri,)) for _ in range(count)]
 

@@ -20,4 +20,18 @@ if __name__ == '__main__':
             'track.utils',
             'track.distributed'
         ],
+        install_requires=[
+            'dataclasses',
+            'typing'
+        ],
+        extras_require={
+            'cockroack': ['psycopg2-binary'],
+            'cometml': ['cometml'],
+            'mongo': ['pymongo'],
+        },
+        dependency_links=[
+            'git+git://github.com/Delaunay/benchutils@master#egg=benchutils'
+        ],
+        setup_requires=['setuptools'],
+        tests_require=['pytest', 'flake8'],
     )

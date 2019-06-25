@@ -10,21 +10,20 @@ def test_cockroach_die():
     for k, v in db.properties.items():
         print(k, v)
 
-    # db.stop()
-    db.wait()
+    db.stop()
 
 
 def test_cockroach_inserts():
     from track.distributed.cockroachdb import CockRoachDB
 
-    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8123')
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8125')
     db.start(wait=True)
 
     for k, v in db.properties.items():
         print(k, v)
 
     try:
-        proto = Cockroach('cockroach://localhost:8123')
+        proto = Cockroach('cockroach://localhost:8125')
 
         proto.new_project(Project(name='test'))
         p = proto.get_project(Project(name='test'))

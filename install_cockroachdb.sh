@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Linux
+mkdir -p track/distributed/cockroach/
 wget -qO- https://binaries.cockroachdb.com/cockroach-v19.1.1.linux-amd64.tgz | tar  xvz
 cp -i cockroach-v19.1.1.linux-amd64/cockroach ./track/distributed/cockroach/cockroach_linux
 rm -rf cockroach-v19.1.1.linux-amd64
