@@ -140,7 +140,7 @@ class Cockroach(Protocol):
         self.cursor.execute("""
             UPDATE track.trials
             SET
-                tags = tags || %s 
+                tags = tags || %s
             WHERE
                 uid = %s
             """, (
@@ -156,9 +156,9 @@ class Cockroach(Protocol):
     # Object Creation
     def get_project(self, project: Project):
         self.cursor.execute("""
-            SELECT 
+            SELECT
                 uid, name, description, tags, trial_groups, trials
-            FROM 
+            FROM
                 track.projects
             WHERE
                 uid = %s
@@ -180,9 +180,9 @@ class Cockroach(Protocol):
     def new_project(self, project: Project):
         try:
             self.cursor.execute("""
-                INSERT INTO 
-                    track.projects (uid, name, description, tags) 
-                VALUES 
+                INSERT INTO
+                    track.projects (uid, name, description, tags)
+                VALUES
                     (%s, %s, %s, %s);
                 """, (
                 project.uid,
@@ -196,9 +196,9 @@ class Cockroach(Protocol):
 
     def get_trial_group(self, group: TrialGroup):
         self.cursor.execute("""
-            SELECT 
+            SELECT
                 uid, name, description, tags, trials, project_id
-            FROM 
+            FROM
                 track.trial_groups
             WHERE
                 uid = %s
@@ -219,9 +219,9 @@ class Cockroach(Protocol):
     def new_trial_group(self, group: TrialGroup):
         try:
             self.cursor.execute("""
-                INSERT INTO 
-                    track.trial_groups (uid, name, description, tags, project_id) 
-                VALUES 
+                INSERT INTO
+                    track.trial_groups (uid, name, description, tags, project_id)
+                VALUES
                     (%s, %s, %s, %s, %s);
                 """, (
                 group.uid.encode('utf8'),
@@ -237,7 +237,7 @@ class Cockroach(Protocol):
     def add_project_trial(self, project: Project, trial: Trial):
         self.cursor.execute("""
             UPDATE track.projects
-            SET 
+            SET
                 trials = array_append(trials, %s)
             WHERE
                 uid = %s
@@ -247,7 +247,7 @@ class Cockroach(Protocol):
         ))
         self.cursor.execute("""
             UPDATE track.trials
-            SET 
+            SET
                 project_id = %s
             WHERE
                 uid = %s
@@ -259,7 +259,7 @@ class Cockroach(Protocol):
     def add_group_trial(self, group: TrialGroup, trial: Trial):
         self.cursor.execute("""
             UPDATE track.trial_groups
-            SET 
+            SET
                 trials = array_append(trials, %s)
             WHERE
                 uid = %s
@@ -269,7 +269,7 @@ class Cockroach(Protocol):
         ))
         self.cursor.execute("""
             UPDATE track.trials
-            SET 
+            SET
                 group_id = %s
             WHERE
                 uid = %s
@@ -283,9 +283,9 @@ class Cockroach(Protocol):
 
     def get_trial(self, trial: Trial):
         self.cursor.execute("""
-            SELECT 
+            SELECT
                 hash, revision, name, description, tags, version, group_id, project_id, parameters, status, errors
-            FROM 
+            FROM
                 track.trials
             WHERE
                 hash = %s AND
@@ -312,10 +312,10 @@ class Cockroach(Protocol):
     def new_trial(self, trial: Trial):
         try:
             self.cursor.execute("""
-                INSERT INTO 
-                    track.trials (uid, hash, revision, name, description, 
-                    tags, version, project_id, group_id, parameters) 
-                VALUES 
+                INSERT INTO
+                    track.trials (uid, hash, revision, name, description,
+                    tags, version, project_id, group_id, parameters)
+                VALUES
                     (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """, (
                 trial.uid,

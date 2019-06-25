@@ -46,3 +46,7 @@ def test_e2e_cometml():
         return
 
     end_to_end_train('cometml:/convnet-test/convnet')
+
+
+if __name__ == '__main__':
+    test_e2e_file()
