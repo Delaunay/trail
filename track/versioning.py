@@ -40,15 +40,31 @@ def compute_version(files: List[str]) -> str:
     return sha256.hexdigest()
 
 
+def is_iterable(iterable):
+    try:
+        iter(iterable)
+        return True
+    except TypeError:
+        return False
+
+
 def compute_hash(*args, **kwargs):
-    def encode(item):
+    def encode(item, hash):
         if isinstance(item, str):
             item = item.encode('utf8')
         elif isinstance(item, float):
             item = bytearray(struct.pack("d", item))
 
-        else:
+        elif isinstance(item, int) and item < 256:
             item = bytes([item])
+
+        elif is_iterable(item):
+            for i in item:
+                hash.update(encode(i, hash))
+
+            return None
+        else:
+            item = bytearray(struct.pack("I", item))
 
         return item
 
@@ -57,14 +73,16 @@ def compute_hash(*args, **kwargs):
         if arg is None:
             continue
 
-        sha256.update(encode(arg))
+        sha256.update(encode(arg, sha256))
 
     for k, v in kwargs.items():
         if v is None:
             continue
 
-        sha256.update(encode(k))
-        sha256.update(encode(v))
+        sha256.update(encode(k, sha256))
+        v = encode(v, sha256)
+        if v is not None:
+            sha256.update(v)
 
     return sha256.hexdigest()
 

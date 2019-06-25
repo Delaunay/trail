@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Set
 from uuid import UUID
 
-from track.utils.log import error, warning
+from track.utils.log import error, warning, debug
 from track.structure import Project, Trial, TrialGroup
 from track.serialization import from_json, to_json
 
@@ -53,7 +53,7 @@ class LocalStorage:
             file_name_override = self.target_file
 
         if file_name_override is None:
-            error('No output file target')
+            debug('No output file target')
             return None
 
         # only save top level projects
@@ -105,6 +105,9 @@ def merge_objects(o1, o2):
 
 
 def load_database(json_name):
+    if json_name is None:
+        return LocalStorage()
+
     if not os.path.exists(json_name):
         warning(f'Local Storage was not found at {json_name}')
         return LocalStorage(target_file=json_name)

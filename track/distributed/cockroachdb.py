@@ -6,7 +6,7 @@ import shutil
 
 from multiprocessing import Process, Manager
 
-from track.utils.log import error, warning, info
+from track.utils.log import error, warning, info, debug
 from track.versioning import compute_version
 
 import signal
@@ -88,7 +88,6 @@ class CockRoachDB:
             stderr=subprocess.STDOUT
         )
 
-        print(kwargs)
         with subprocess.Popen(**kwargs, shell=True) as proc:
             try:
                 properties['running'] = True
@@ -124,28 +123,53 @@ class CockRoachDB:
 
     def _setup(self, client='track_client'):
         out = subprocess.check_output(f'{self.bin} user set {client} --insecure --host={self.addrs}', shell=True)
-        info(out.decode('utf8').strip())
+        debug(out.decode('utf8').strip())
 
         create_db = f"""
         CREATE DATABASE IF NOT EXISTS track;
         SET DATABASE = track;
         GRANT ALL ON DATABASE track TO {client};
         CREATE TABLE IF NOT EXISTS track.projects (
-            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
-            project JSONB
-        );
-        CREATE TABLE IF NOT EXISTS track.trials (
-            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
-            trial JSONB
+            uid             BYTES PRIMARY KEY,
+            name            STRING,
+            description     STRING,
+            tags            JSONB,
+            trial_groups    BYTES[],
+            trials          BYTES[]
         );
         CREATE TABLE IF NOT EXISTS track.trial_groups (
-            id UUID DEFAULT uuid_v4()::UUID PRIMARY KEY,
-            trial_group JSONB
+            uid         BYTES PRIMARY KEY,
+            name        STRING,
+            description STRING,
+            tags        JSONB,
+            trials      BYTES[],
+            project_id  BYTES
+        );
+        CREATE TABLE IF NOT EXISTS track.trials (
+            uid         BYTES,
+            hash        BYTES,
+            revision    SMALLINT,
+            name        STRING,
+            description STRING,
+            tags        JSONB,
+            version     BYTES,
+            
+            group_id    BYTES,
+            project_id  BYTES,
+
+            parameters  JSONB,
+            metadata    JSONB,
+            metrics     JSONB,
+            chronos     JSONB,
+            status      JSONB,
+            errors      JSONB,
+
+            PRIMARY KEY (hash, revision)
         );
         """.encode('utf8')
 
         out = subprocess.check_output(f'{self.bin} sql --insecure --host={self.addrs}', input=create_db, shell=True)
-        info(out.decode('utf8').strip())
+        debug(out.decode('utf8').strip())
 
     def stop(self):
         self.properties['running'] = False
@@ -212,14 +236,3 @@ class CockRoachDB:
     @property
     def build(self):
         return self.properties.get('build')
-
-
-if __name__ == '__main__':
-    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost')
-    db.start(wait=True)
-
-    for k, v in db.properties.items():
-        print(k, v)
-
-    # db.stop()
-    db.wait()
