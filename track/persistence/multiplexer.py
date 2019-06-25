@@ -19,7 +19,8 @@ class ProtocolMultiplexer:
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
                                end_callback=None):
-        return [p.log_trial_chrono_start(trial, name, aggregator, start_callback, end_callback) for p in self.protos][-1]
+        return [p.log_trial_chrono_start(trial, name, aggregator, start_callback, end_callback)
+                for p in self.protos][-1]
 
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
         return [p.log_trial_chrono_finish(trial, name, exc_type, exc_val, exc_tb) for p in self.protos][-1]

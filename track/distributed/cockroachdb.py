@@ -151,10 +151,8 @@ class CockRoachDB:
             description STRING,
             tags        JSONB,
             version     BYTES,
-            
             group_id    BYTES,
             project_id  BYTES,
-
             parameters  JSONB,
             metadata    JSONB,
             metrics     JSONB,
@@ -163,8 +161,7 @@ class CockRoachDB:
             errors      JSONB,
 
             PRIMARY KEY (hash, revision)
-        );
-        """.encode('utf8')
+        );""".encode('utf8')
 
         out = subprocess.check_output(f'{self.bin} sql --insecure --host={self.addrs}', input=create_db, shell=True)
         debug(out.decode('utf8').strip())
