@@ -79,6 +79,7 @@ class CockRoachDB:
         self.properties['running'] = False
         self.clean_on_exit = clean_on_exit
         self._process: Process = None
+        self.cmd = None
 
     def _start(self, properties):
         kwargs = dict(
@@ -87,6 +88,7 @@ class CockRoachDB:
             bufsize=1,
             stderr=subprocess.STDOUT
         )
+        self.cmd = kwargs['args']
 
         with subprocess.Popen(**kwargs, shell=True) as proc:
             try:
@@ -98,13 +100,9 @@ class CockRoachDB:
                         line = proc.stdout.readline().decode('utf-8')
                         if line:
                             self.parse(properties, line)
-
-                # This does not actually close cockroachdb for some reason
-                if proc.poll() is None:
-                    os.kill(proc.pid, signal.SIGINT)
-
-                if proc.poll() is None:
-                    os.kill(proc.pid, signal.SIGTERM)
+                    else:
+                        properties['running'] = False
+                        properties['exit'] = proc.returncode
 
             except Exception:
                 error(traceback.format_exc())
@@ -176,16 +174,8 @@ class CockRoachDB:
         self._process.join(timeout=5)
         self._process.terminate()
 
-        # you cant just terminate Popen in the case of cockroachdb
-        # you need to kill it with fire
-        os.kill(self.properties['pid'], signal.SIGTERM)
-
-        if self._process.is_alive():
-            os.kill(self.properties['pid'], signal.SIGKILL)
-
-        # cockroach db outlive the parent shell...
-        # so we kill the actual process as well
         os.kill(self.properties['db_pid'], signal.SIGTERM)
+
         if self.clean_on_exit:
             shutil.rmtree(self.location)
 
@@ -211,7 +201,7 @@ class CockRoachDB:
         except Exception as e:
             print(e, line, end='\n')
             print(traceback.format_exc())
-            raise RuntimeError(line)
+            raise RuntimeError(f'{line} (cmd: {self.cmd})')
 
     # properties that are populated once the server has started
     @property

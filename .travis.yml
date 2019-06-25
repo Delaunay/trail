@@ -7,29 +7,20 @@ install:
   - pip install -r requirements.txt
   - pip install pytest
   - pip install pytest-cov
-  - pip install pylint
   - pip install flake8
   - pip install codecov
-  - pip install mypy
   - pip install psycopg2-binary
   - pip install https://download.pytorch.org/whl/cpu/torch-1.1.0-cp36-cp36m-linux_x86_64.whl
   - pip install https://download.pytorch.org/whl/cpu/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
-  - wget -qO- https://binaries.cockroachdb.com/cockroach-v19.1.2.linux-amd64.tgz | tar  xvz
-  - cp -i cockroach-v19.1.2.linux-amd64/cockroach .
+  - ./install_cockroachdb.sh
   - export PATH="$PATH:."
 
 jobs:
   include:
     - stage: unit-test
       script:
-        - travis_wait 30 python -m pytest --cov=track tests/
+        - python -m pytest --cov=track tests/
         - codecov
     - stage: pep8
       script:
         - flake8 track
-    - stage: pylint
-      script:
-        - pylint track; true
-    - stage: typecheck
-      script:
-        - mypy track; true
