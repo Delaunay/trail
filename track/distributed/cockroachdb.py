@@ -211,6 +211,7 @@ class CockRoachDB:
         except Exception as e:
             print(e, line, end='\n')
             print(traceback.format_exc())
+            raise RuntimeError(line)
 
     # properties that are populated once the server has started
     @property
