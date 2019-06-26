@@ -14,7 +14,6 @@ from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
 from track.utils.log import error, warning, info
 from track.utils.throttle import throttle_repeated
-from track.utils.encrypted import encrypted_transport
 
 from typing import Callable
 
@@ -289,7 +288,7 @@ class SocketServer(Protocol):
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.create_task(asyncio.start_server(self.handle_client, sock=self.sckt, protocol_factory=encrypted_transport))
+        loop.create_task(asyncio.start_server(self.handle_client, sock=self.sckt))
         loop.run_forever()
 
         self.loop = loop

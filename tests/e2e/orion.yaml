@@ -3,7 +3,7 @@ name: voila_voici
 pool_size: 1
 max_trials: 30
 
-algorithms: random_search
+algorithms: random
 
 producer:
     strategy: NoParallelStrategy

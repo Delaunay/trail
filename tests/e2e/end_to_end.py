@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from track import TrackClient
 
 import sys
@@ -227,4 +228,4 @@ def end_to_end_train(backend, argv=None):
 
 if __name__ == '__main__':
     import sys
-    end_to_end_train('file:', sys.argv)
+    end_to_end_train('file:', sys.argv[1:])

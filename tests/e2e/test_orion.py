@@ -11,14 +11,13 @@ import time
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_orion_poc():
 
+    #
+    # os.makedirs('/tmp/mongodb', exist_ok=True)
+    #
     # server = Process(target=mongodb)
     # server.start()
-    os.makedirs('/tmp/mongodb', exist_ok=True)
-
-    #p = Process(target=mongodb)
-    #p.start()
-
-    time.sleep(3)
+    #
+    # time.sleep(3)
 
     # out = subprocess.check_output(
     #     'mongo orion_test --eval \'db.createUser({user:"user",pwd:"pass",roles:["readWrite"]});\'',
@@ -26,11 +25,16 @@ def test_orion_poc():
     # )
     # print(out.decode('utf8'))
 
+    multiple_of_8 = [8 * i for i in range(32 // 8, 512 // 8)]
+
     orion.core.cli.main([
-        '-vv', 'hunt', '--config', 'orion.yaml', '-n', 'default_algo',  '--max-trials', '30',
-        './end_to_end.py', '--batch-size~loguniform(32, 512, discrete=True)'
+        '-vv', '--debug', 'hunt',
+        '--config', 'orion.yaml', '-n', 'default_algo', '--metric', 'error_rate', '--max-trials', '30',
+        './end_to_end.py', f'--batch-size~choices({multiple_of_8})'
     ])
 
+
+    #  '--batch-size~loguniform(32, 512, discrete=True)'
     # p.kill()
 
 
