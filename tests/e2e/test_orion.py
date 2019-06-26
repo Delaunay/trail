@@ -30,9 +30,8 @@ def test_orion_poc():
     orion.core.cli.main([
         '-vv', '--debug', 'hunt',
         '--config', 'orion.yaml', '-n', 'default_algo', '--metric', 'error_rate', '--max-trials', '30',
-        './end_to_end.py', f'--batch-size~choices({multiple_of_8})'
+        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', 'file://orion_results.json'
     ])
-
 
     #  '--batch-size~loguniform(32, 512, discrete=True)'
     # p.kill()

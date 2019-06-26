@@ -39,19 +39,22 @@ def end_to_end_train(backend, argv=None):
     parser.add_argument('--break-after', default=None, type=int, help='Break after N batches')
 
     parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
+    parser.add_argument('--backend', default=None, help='track backend')
 
     # ----
+    if argv is None:
+        argv = []
+
+    args = parser.parse_args(argv)
+
+    if args.backend is not None:
+        backend = args.backend
 
     trial = TrackClient(backend=backend)
     trial.set_project(name='ConvnetTest', description='Trail test example')
     trial.set_group(name='test_group')
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')
-
-    if argv is None:
-        argv = []
-
-    args = parser.parse_args(argv)
 
     if torch.cuda.is_available():
         args.batch_size = 4096
