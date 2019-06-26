@@ -14,6 +14,7 @@ from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
 from track.utils.log import error, warning, info
 from track.utils.throttle import throttle_repeated
+from track.utils.encrypted import encrypted_transport
 
 from typing import Callable
 
@@ -41,6 +42,10 @@ def send(socket, msg):
 def recv(socket, timeout=None):
     data = socket.recv(4096)
     size = struct.unpack('I', data[0:4])[0]
+
+    info(socket.server_side)
+    info(size)
+    info(data)
 
     elapsed = 0
     while len(data) < size:
@@ -79,7 +84,8 @@ class SocketClient(Protocol):
         uri = parse_uri(uri)
         self.username = uri.get('username')
         self.password = uri.get('password')
-        self.socket = open_socket(uri.get('address'), int(uri.get('port')))
+        self.security_layer = uri['query'].get('security_layer')
+        self.socket = open_socket(uri.get('address'), int(uri.get('port')), backend=self.security_layer)
 
         # Should we send the password hashed ? The connection should be secure regardless
         # Plus how would we handle salting
@@ -89,6 +95,8 @@ class SocketClient(Protocol):
         kwargs['password'] = self.password
         send(self.socket, kwargs)
         self.token = _check(recv(self.socket))
+        info('token')
+        info(self.token)
 
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
@@ -258,27 +266,33 @@ class SocketServer(Protocol):
     def __init__(self, uri):
         """
 
-        :param uri:  socket://{hostname}:{port}?backend={protocol} with
+        :param uri:  socket://{hostname}:{port}?security_layer={}&backend={protocol} with
                 hostname: 127.0.0.1
         """
         from track.persistence import get_protocol
 
         uri = parse_uri(uri)
         self.address, self.port = uri.get('address'), int(uri.get('port'))
+        self.security_layer = uri['query'].get('security_layer')
+
         self.backend = get_protocol(uri['query'].get('backend'))
         self.authentication = {}
         self.timeout = 10
         self.client_cache = {}
+        self.sckt = None
+        self.loop = None
 
     # https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio
     def run_server(self):
         info(f'Server listening to {self.address}:{self.port}')
-        sckt = listen_socket(self.address, self.port)
+        self.sckt = listen_socket(self.address, self.port, backend=self.security_layer)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.create_task(asyncio.start_server(self.handle_client, sock=sckt))
+        loop.create_task(asyncio.start_server(self.handle_client, sock=self.sckt, protocol_factory=encrypted_transport))
         loop.run_forever()
+
+        self.loop = loop
 
     def process_args(self, args, cache=None):
         """ replace ids by their object reference so the backend modifies the objects and not a copy"""
@@ -434,6 +448,14 @@ class SocketServer(Protocol):
     def commit(self, **kwargs):
         self.backend.commit(**kwargs)
 
+    def close(self):
+        if self.loop is not None:
+            self.loop.close()
+
+        if self.sckt is not None:
+            info('Shutting down server')
+            self.sckt.close()
+
 
 class ServerSignalHandler(SignalHandler):
     def __init__(self, server):
@@ -441,13 +463,13 @@ class ServerSignalHandler(SignalHandler):
         self.server = server
 
     def sigterm(self, signum, frame):
-        self.server.commit()
+        self.server.close()
 
     def sigint(self, signum, frame):
-        self.server.commit()
+        self.server.close()
 
 
-def start_track_server(protocol, hostname, port):
+def start_track_server(protocol, hostname, port, security_layer=None):
     """
 
     :param protocol: string that represent a backend that implements the track protocol
@@ -456,21 +478,28 @@ def start_track_server(protocol, hostname, port):
             CometML     : cometml://workspace/project   : save through cometml API
             MLFloat     : mlflow://...
 
-    :param hostname : hostname of the server
-    :param port     : port to listen for incoming client
+    :param hostname      : hostname of the server
+    :param port          : port to listen for incoming client
+    :param security_layer: backend used for encryption
 
     :return:
     """
-    server = SocketServer(f'socket://{hostname}:{port}?backend={protocol}')
+
+    security = ''
+    if security_layer is not None:
+        security = f'&security_layer={security_layer}'
+
+    server = SocketServer(f'socket://{hostname}:{port}?backend={protocol}' + security)
     _ = ServerSignalHandler(server)
 
     try:
+        info('Running Server')
         server.run_server()
     except KeyboardInterrupt as e:
-        # server.commit()
+        server.close()
         raise e
     except Exception as e:
-        # server.commit()
+        server.close()
         raise e
 
 
