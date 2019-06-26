@@ -130,9 +130,9 @@ class FileProtocol(Protocol):
             return
 
         project = self.storage.objects.get(group.project_id)
-        assert project is not None, 'Cannot create a group without an associated project'
-
-        project.groups.append(group)
+        if self.strict:
+            assert project is not None, 'Cannot create a group without an associated project'
+            project.groups.append(group)
 
         self.storage.objects[group.uid] = group
         self.storage.groups.add(group.uid)

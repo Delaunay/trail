@@ -269,16 +269,20 @@ class SocketServer(Protocol):
         self.authentication = {}
         self.timeout = 10
         self.client_cache = {}
+        self.sckt = None
+        self.loop = None
 
     # https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio
     def run_server(self):
         info(f'Server listening to {self.address}:{self.port}')
-        sckt = listen_socket(self.address, self.port)
+        self.sckt = listen_socket(self.address, self.port)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.create_task(asyncio.start_server(self.handle_client, sock=sckt))
+        loop.create_task(asyncio.start_server(self.handle_client, sock=self.sckt))
         loop.run_forever()
+
+        self.loop = loop
 
     def process_args(self, args, cache=None):
         """ replace ids by their object reference so the backend modifies the objects and not a copy"""
@@ -434,6 +438,14 @@ class SocketServer(Protocol):
     def commit(self, **kwargs):
         self.backend.commit(**kwargs)
 
+    def close(self):
+        if self.loop is not None:
+            self.loop.close()
+
+        if self.sckt is not None:
+            info('Shutting down server')
+            self.sckt.close()
+
 
 class ServerSignalHandler(SignalHandler):
     def __init__(self, server):
@@ -441,10 +453,10 @@ class ServerSignalHandler(SignalHandler):
         self.server = server
 
     def sigterm(self, signum, frame):
-        self.server.commit()
+        self.server.close()
 
     def sigint(self, signum, frame):
-        self.server.commit()
+        self.server.close()
 
 
 def start_track_server(protocol, hostname, port):
@@ -461,16 +473,19 @@ def start_track_server(protocol, hostname, port):
 
     :return:
     """
+    import socket
+
     server = SocketServer(f'socket://{hostname}:{port}?backend={protocol}')
     _ = ServerSignalHandler(server)
 
     try:
+        info('Running Server')
         server.run_server()
     except KeyboardInterrupt as e:
-        # server.commit()
+        server.close()
         raise e
     except Exception as e:
-        # server.commit()
+        server.close()
         raise e
 
 

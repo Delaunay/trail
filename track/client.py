@@ -70,8 +70,7 @@ class TrackClient:
         if self.project is not None:
             return self.project
 
-        self.project = project
-        self.protocol.new_project(project)
+        self.project = self.protocol.new_project(project)
         return self.project
 
     def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):
@@ -86,8 +85,7 @@ class TrackClient:
         if self.group is not None:
             return self.group
 
-        self.group = group
-        self.protocol.new_trial_group(self.group)
+        self.group = self.protocol.new_trial_group(group)
         return self.group
 
     def _make_trial(self, arguments, name=None, **kwargs):
