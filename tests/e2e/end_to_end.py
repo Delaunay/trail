@@ -11,6 +11,8 @@ import torchvision.models as models
 import torch.nn.functional as F
 import argparse
 
+from orion.client import report_results
+
 sys.stderr = sys.stdout
 
 
@@ -18,7 +20,7 @@ SKIP_COMET = True
 SKIP_SERVER = True
 
 
-def end_to_end_train(backend):
+def end_to_end_train(backend, argv=None):
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
     parser.add_argument('--batch-size', '-b', type=int, help='batch size', default=32)
@@ -33,6 +35,7 @@ def end_to_end_train(backend):
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float, metavar='LR')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='MT')
     parser.add_argument('--opt-level', default='O0', type=str)
+    parser.add_argument('--break-after', default=None, type=int, help='Break after N batches')
 
     parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
 
@@ -44,7 +47,11 @@ def end_to_end_train(backend):
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')
 
-    args = parser.parse_args([])
+    if argv is None:
+        argv = []
+
+    args = parser.parse_args(argv)
+
     if torch.cuda.is_available():
         args.batch_size = 4096
 
@@ -158,6 +165,8 @@ def end_to_end_train(backend):
     batch_count = len(train_loader)
     trial.set_eta_total((args.epochs, batch_count))
 
+    epoch_loss = 0
+
     with trial:
         model.train()
         for epoch in range(args.epochs):
@@ -194,13 +203,28 @@ def end_to_end_train(backend):
 
                             optimizer.step()
                             batch_id += 1
+
+                    if args.break_after is not None and batch_id >= args.break_after:
+                        break
+
                     # ---
                     # trial.log_metrics(step=epoch * batch_count + batch_id, batc_loss=batch_loss)
                     trial.show_eta((epoch, batch_id), batch_time, throttle=100)
 
             epoch_loss /= batch_count
             trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
-                # ---
+            # ---
+
+    report_results([{
+        'name': 'loss',
+        'type': 'objective',
+        'value': epoch_loss
+    }])
 
     trial.report()
     trial.save()
+
+
+if __name__ == '__main__':
+    import sys
+    end_to_end_train('file:', sys.argv)

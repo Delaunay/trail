@@ -30,7 +30,7 @@ def test_e2e_server_socket():
     s.close()
 
     print('Starting Server')
-    #start_track_server('file://server_test.json', 'localhost', port)
+    start_track_server('file://server_test.json', 'localhost', port)
 
     server = Process(target=start_track_server('file://server_test.json', 'localhost', port))
     server.start()
