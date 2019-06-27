@@ -28,9 +28,11 @@ if __name__ == '__main__':
             'cockroack': ['psycopg2-binary'],
             'cometml': ['cometml'],
             'mongo': ['pymongo'],
+            'orion': ['orion.core']
         },
         dependency_links=[
-            'git+git://github.com/Delaunay/benchutils@master#egg=benchutils'
+            'git+git://github.com/Delaunay/benchutils@master#egg=benchutils',
+            'git+git://github.com/Delaunay/orion.git@track'
         ],
         setup_requires=['setuptools'],
         tests_require=['pytest', 'flake8', 'codecov', 'pytest-cov'],

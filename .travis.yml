@@ -12,6 +12,7 @@ install:
   - pip install psycopg2-binary
   - pip install https://download.pytorch.org/whl/cpu/torch-1.1.0-cp36-cp36m-linux_x86_64.whl
   - pip install https://download.pytorch.org/whl/cpu/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
+  - pip install git+https://github.com/Delaunay/orion.git@track
   - ./install_cockroachdb.sh
   - export PATH="$PATH:."
 
