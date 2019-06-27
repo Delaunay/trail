@@ -219,11 +219,14 @@ def end_to_end_train(backend, argv=None):
             trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
             # ---
 
-    report_results([{
-        'name': 'loss',
-        'type': 'objective',
-        'value': epoch_loss
-    }])
+    try:
+        report_results([{
+            'name': 'loss',
+            'type': 'objective',
+            'value': epoch_loss
+        }])
+    except RuntimeWarning:
+        pass
 
     trial.report()
     trial.save()
