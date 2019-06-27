@@ -51,7 +51,7 @@ def end_to_end_train(backend, argv=None):
         backend = args.backend
 
     trial = TrackClient(backend=backend)
-    trial.set_project(name='ConvnetTest', description='Trail test example')
+    trial.set_project(name='orion_test', description='Trail test example')
     trial.set_group(name='test_group')
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')

@@ -1,7 +1,10 @@
 from track.structure import Project, TrialGroup, Trial
 from track.aggregators.aggregator import Aggregator
 from track.aggregators.aggregator import StatAggregator
+from track.aggregators.aggregator import ValueAggregator
 from typing import Callable
+
+value_aggregator = ValueAggregator.lazy()
 
 
 class Protocol:
@@ -22,7 +25,7 @@ class Protocol:
     def log_trial_arguments(self, trial: Trial, **kwargs):
         raise NotImplementedError()
 
-    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
+    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         raise NotImplementedError()
 
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):

@@ -1,7 +1,7 @@
 name: voila_voici
 
 pool_size: 1
-max_trials: 30
+max_trials: 2
 
 algorithms: random
 
@@ -12,3 +12,9 @@ database:
   type: 'mongodb'
   name: 'orion_test'
   host: 'mongodb://user:pass@localhost'
+
+backend:
+  type: 'track'
+  uri: 'file://orion_results.json'  # 'cockroach://user:pass@192.168.12.12:45678/project'
+                                    # 'mongodb://user:pass@192.,,,,'
+

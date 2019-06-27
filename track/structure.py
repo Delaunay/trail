@@ -39,6 +39,9 @@ class CustomStatus:
     def value(self):
         return self._value
 
+    def __eq__(self, other):
+        return self.value == other.value and self.name == other.name
+
 
 def status(name=None, value=None):
     if name is not None:

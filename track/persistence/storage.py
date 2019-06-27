@@ -143,6 +143,10 @@ def load_database(json_name):
                 db[trial.uid] = trial
                 trials.add(trial.uid)
 
+            for group in obj.groups:
+                db[group.uid] = group
+                groups.add(group.uid)
+
         elif isinstance(obj, Trial):
             trials.add(obj.uid)
             if obj.name is not None:

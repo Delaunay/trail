@@ -81,7 +81,7 @@ def options(key, default=none):
     conf = _configuration
     keys = key.split('.')
     env_key = key.replace('.', '_').upper()
-    env_key = f'TRAIL_{env_key}'
+    env_key = f'TRACK_{env_key}'
 
     env_override = os.environ.get(env_key)
     if env_override is not None:

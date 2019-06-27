@@ -9,7 +9,7 @@ import time
 
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
-def test_orion_poc():
+def test_orion_poc(backend='file://orion_results.json'):
 
     #
     # os.makedirs('/tmp/mongodb', exist_ok=True)
@@ -29,8 +29,8 @@ def test_orion_poc():
 
     orion.core.cli.main([
         '-vv', '--debug', 'hunt',
-        '--config', 'orion.yaml', '-n', 'default_algo', '--metric', 'error_rate', '--max-trials', '30',
-        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', 'file://orion_results.json'
+        '--config', 'orion.yaml', '-n', 'default_algo', '--metric', 'error_rate', '--max-trials', '2',
+        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', backend
     ])
 
     #  '--batch-size~loguniform(32, 512, discrete=True)'

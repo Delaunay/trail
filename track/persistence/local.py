@@ -15,6 +15,7 @@ from track.aggregators.aggregator import TimeSeriesAggregator
 import time
 
 
+value_aggregator = ValueAggregator.lazy()
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
 ts_aggregator = TimeSeriesAggregator.lazy()
@@ -56,7 +57,7 @@ class FileProtocol(Protocol):
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
 
-    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
+    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         for k, v in kwargs.items():
             container = trial.metadata.get(k)
 
@@ -239,9 +240,19 @@ def execute_query(obj, query):
         }
     """
     is_selected = True
-    for attr, condition in query.items():
-        if not hasattr(attr, obj):
-            warning(f'(obj: {type(obj)}) has no attribute (attr: {attr})')
+    # a query can be a dict of a list of conditions
+    # allowing a list enable users to make sure the conditions are executed in a specific order
+    # this can be used to speed up query. You can put the most strict condition first to reduce the number of checks
+    # we have to do to select a query
+    items = None
+    if isinstance(query, dict):
+        items = query.items()
+    else:
+        items = list(query)
+
+    for attr, condition in items:
+        if not hasattr(obj, attr):
+            warning(f'(obj: {type(obj)}) has no (attribute: {attr})')
             continue
 
         # This is a complex query that needs to be further processed
@@ -251,16 +262,20 @@ def execute_query(obj, query):
 
                 fun = _query_fun.get('$in')
                 if fun is None:
-                    raise RuntimeError(f'Function {fun_name} is not understood')
+                    raise RuntimeError(f'(function: {fun_name}) is not understood')
 
                 is_selected &= fun(obj, attr, args)
 
             else:
-                raise RuntimeError(f'Query (q:  {query}) was not understood')
+                raise RuntimeError(f'(query:  {query}) was not understood')
 
         # this is a simple value
         else:
             is_selected &= getattr(obj, attr) == condition
+
+        # shortcut
+        if not is_selected:
+            return False
 
     return is_selected
 

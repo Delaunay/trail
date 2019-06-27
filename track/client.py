@@ -108,14 +108,35 @@ class TrackClient:
         trial = self.protocol.new_trial(trial)
         return trial
 
+    def set_trial(self, uid=None, hash=None, revision=None):
+        if uid is not None:
+            hash, revision = uid.split('_')
+        else:
+            assert hash is not None and revision is not None
+
+        try:
+            self.trial = self.protocol.get_trial(Trial(_hash=hash, revision=revision))[0]
+            self.logger = TrialLogger(self.trial, self.protocol)
+            return self.logger
+
+        except IndexError:
+            raise RuntimeError(f'cannot set trial (id: {uid}, hash:{hash}) it does not exist')
+
     def new_trial(self, arguments=None, name=None, description=None, **kwargs):
+        uid = options('trial.uid', None)
+
+        if uid is not None:
+            return self.set_trial(uid=uid)
+
         # if arguments are not specified do not create the trial just yet
         # wait for the user to be able to specify the parameters so we can have a meaningful hash
-        if arguments is None:
+        if arguments is None and uid is None:
             self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
             return self.trial.get_future()
 
-        self.trial = self._make_trial(arguments, name=name)
+        if self.trial is None:
+            self.trial = self._make_trial(arguments, name=name)
+
         self.logger = TrialLogger(self.trial, self.protocol)
 
         if self.project is not None:
