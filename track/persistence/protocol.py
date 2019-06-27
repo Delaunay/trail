@@ -61,3 +61,12 @@ class Protocol:
 
     def new_trial(self, trial: Trial):
         raise NotImplementedError()
+
+    def fetch_trials(self, query):
+        raise NotImplementedError()
+
+    def fetch_groups(self, query):
+        raise NotImplementedError()
+
+    def fetch_projects(self, query):
+        raise NotImplementedError()

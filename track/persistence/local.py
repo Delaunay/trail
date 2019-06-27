@@ -195,3 +195,82 @@ class FileProtocol(Protocol):
 
     def commit(self, file_name_override=None, **kwargs):
         self.storage.commit(file_name_override=file_name_override, **kwargs)
+
+    def _fetch_objects(self, objects, query, strict=False):
+        matching_objects = []
+
+        for obj_id in objects:
+            obj = self.storage.objects.get(obj_id)
+
+            if obj is None:
+                err = f'stale trial (id: {obj_id}) something is wrong'
+                if strict:
+                    raise RuntimeError(err)
+                else:
+                    warning(err)
+                continue
+
+            is_selected = execute_query(obj, query)
+
+            if is_selected:
+                matching_objects.append(obj)
+
+        return matching_objects
+
+    def fetch_trials(self, query):
+        return self._fetch_objects(self.storage.trials, query)
+
+    def fetch_groups(self, query):
+        return self._fetch_objects(self.storage.groups, query)
+
+    def fetch_projects(self, query):
+        return self._fetch_objects(self.storage.projects, query)
+
+
+def execute_query(obj, query):
+    """ check if the object `obj` matches the query.
+        The query is a dictionary specifying constraint on each of the object attributes
+
+        {
+            attr1: value            # attr1 should be equal to value
+            attr2: {                # attr2 should be inside the list of values
+                '$in': [1, 2, 3]
+            }
+        }
+    """
+    is_selected = True
+    for attr, condition in query.items():
+        if not hasattr(attr, obj):
+            warning(f'(obj: {type(obj)}) has no attribute (attr: {attr})')
+            continue
+
+        # This is a complex query that needs to be further processed
+        if isinstance(condition, dict):
+            if len(condition) == 1:
+                fun_name, args = list(condition.items())[0]
+
+                fun = _query_fun.get('$in')
+                if fun is None:
+                    raise RuntimeError(f'Function {fun_name} is not understood')
+
+                is_selected &= fun(obj, attr, args)
+
+            else:
+                raise RuntimeError(f'Query (q:  {query}) was not understood')
+
+        # this is a simple value
+        else:
+            is_selected &= getattr(obj, attr) == condition
+
+    return is_selected
+
+
+def query_in(obj, attr, choices):
+    return getattr(obj, attr) in choices
+
+
+_query_fun = {
+    '$in': query_in
+}
+
+
