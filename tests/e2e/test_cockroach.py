@@ -15,3 +15,7 @@ def test_e2e_cockroach():
     finally:
         db.stop()
 
+
+if __name__ == '__main__':
+    test_e2e_cockroach()
+

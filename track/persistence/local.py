@@ -1,5 +1,9 @@
+import time
+
+from filelock import FileLock
 from typing import Callable
 
+from track.utils.signal import SignalHandler
 from track.utils.log import error, warning
 from track.structure import Project, Trial, TrialGroup
 from track.persistence.protocol import Protocol
@@ -11,8 +15,6 @@ from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
 from track.aggregators.aggregator import ValueAggregator
 from track.aggregators.aggregator import TimeSeriesAggregator
-
-import time
 
 
 value_aggregator = ValueAggregator.lazy()
@@ -31,9 +33,83 @@ def _make_container(step, aggregator):
         return dict()
 
 
-class FileProtocol(Protocol):
+class _NoLockLock:
+    def __enter__(self):
+        pass
 
-    def __init__(self, uri, strict=True):
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            raise exc_type
+
+
+def make_lock(name, eager):
+    if eager:
+        return FileLock(name, timeout=5)
+    return _NoLockLock()
+
+
+def lock_guard(readonly):
+    """Protect a function call with a lock. reload the database before the action and save it afterwards"""
+
+    def lock_guard_decorator(fun):
+
+        def _lock_guard(self, *args, **kwargs):
+            with self.lock:
+                if self.eager:
+                    self.storage: LocalStorage = load_database(self.path)
+
+                fun(self, *args, **kwargs)
+
+                if self.eager and not readonly:
+                    self.commit()
+
+        return _lock_guard
+
+    return lock_guard_decorator
+
+
+lock_write = lock_guard(readonly=False)
+lock_read = lock_guard(readonly=True)
+
+
+class LockFileRemover(SignalHandler):
+    def __init__(self, filename):
+        super(LockFileRemover, self).__init__()
+        self.file_name = filename
+
+    def remove(self):
+        import os
+        if os.path.exists(self.file_name):
+            os.remove(self.file_name)
+
+    def sigterm(self, signum, frame):
+        self.remove()
+
+    def sigint(self, signum, frame):
+        self.remove()
+
+
+
+class FileProtocol(Protocol):
+    """Local File storage to manage experiments
+
+    Parameters
+    ----------
+
+    uri: str
+        resource to use to store the experiment `file://my_file.json`
+
+    strict: bool
+        forces the storage to be correct.
+        if we use the file protocol as an in-memory storage we might get some inconsistencies
+        we can use this flag to ignore them
+
+    eager: bool
+        eagerly update the underlying files. This is necessary if multiple processes are reading from the file
+
+    """
+
+    def __init__(self, uri, strict=True, eager=True):
         uri = parse_uri(uri)
 
         # file:test.json
@@ -43,20 +119,27 @@ class FileProtocol(Protocol):
             # file://test.json
             path = uri.get('address')
 
+        self.path = path
         self.storage: LocalStorage = load_database(path)
         self.chronos = {}
         self.strict = strict
+        self.eager = eager
+        self.lock = make_lock(f'{path}.lock', eager)
+        self.signal_handler = LockFileRemover(f'{path}.lock')
 
+    @lock_write
     def log_trial_start(self, trial):
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
 
+    @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
 
+    @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         for k, v in kwargs.items():
             container = trial.metadata.get(k)
@@ -67,6 +150,7 @@ class FileProtocol(Protocol):
 
             container.append(v)
 
+    @lock_write
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
                                end_callback=None):
@@ -77,11 +161,13 @@ class FileProtocol(Protocol):
 
         self.chronos[name] = time.time()
 
+    @lock_write
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
         start_time = self.chronos[name]
         acc = trial.chronos[name]
         acc.append(time.time() - start_time)
 
+    @lock_write
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         for k, v in kwargs.items():
             container = trial.metrics.get(k)
@@ -97,21 +183,26 @@ class FileProtocol(Protocol):
             else:
                 container.append(v)
 
+    @lock_write
     def add_trial_tags(self, trial, **kwargs):
         trial.tags.update(kwargs)
 
+    @lock_write
     def log_trial_arguments(self, trial, **kwargs):
         trial.parameters.update(kwargs)
 
+    @lock_write
     def set_trial_status(self, trial, status, error=None):
         trial.status = status
         if error is not None:
             trial.errors.append(error)
 
     # Object Creation
+    @lock_read
     def get_project(self, project: Project):
         return self.storage.objects.get(project.uid)
 
+    @lock_write
     def new_project(self, project: Project):
         if project.uid in self.storage.objects:
             error(f'Cannot insert project; (uid: {project.uid}) already exists!')
@@ -122,9 +213,11 @@ class FileProtocol(Protocol):
         self.storage.projects.add(project.uid)
         return project
 
+    @lock_read
     def get_trial_group(self, group: TrialGroup):
         return self.storage.objects.get(group.uid)
 
+    @lock_write
     def new_trial_group(self, group: TrialGroup):
         if group.uid in self.storage.objects:
             error(f'Cannot insert group; (uid: {group.uid}) already exists!')
@@ -140,6 +233,7 @@ class FileProtocol(Protocol):
         self.storage.group_names[group.name] = group.uid
         return group
 
+    @lock_read
     def get_trial(self, trial: Trial):
         trials = []
 
@@ -153,6 +247,7 @@ class FileProtocol(Protocol):
             return trials
         return None
 
+    @lock_write
     def new_trial(self, trial: Trial):
         if trial.uid in self.storage.objects:
             trials = self.get_trial(trial)
@@ -183,10 +278,12 @@ class FileProtocol(Protocol):
 
         return trial
 
+    @lock_write
     def add_project_trial(self, project, trial):
         trial.project_id = project.uid
         project.trials.append(trial)
 
+    @lock_write
     def add_group_trial(self, group, trial):
         if group is None and not self.strict:
             return
@@ -195,8 +292,10 @@ class FileProtocol(Protocol):
         group.trials.append(trial.uid)
 
     def commit(self, file_name_override=None, **kwargs):
-        self.storage.commit(file_name_override=file_name_override, **kwargs)
+        with self.lock:
+            self.storage.commit(file_name_override=file_name_override, **kwargs)
 
+    @lock_read
     def _fetch_objects(self, objects, query, strict=False):
         matching_objects = []
 
@@ -218,12 +317,15 @@ class FileProtocol(Protocol):
 
         return matching_objects
 
+    @lock_read
     def fetch_trials(self, query):
         return self._fetch_objects(self.storage.trials, query)
 
+    @lock_read
     def fetch_groups(self, query):
         return self._fetch_objects(self.storage.groups, query)
 
+    @lock_read
     def fetch_projects(self, query):
         return self._fetch_objects(self.storage.projects, query)
 

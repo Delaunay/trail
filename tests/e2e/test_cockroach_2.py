@@ -29,4 +29,4 @@ def test_e2e_cockroach_2clients(count=2):
 
 if __name__ == '__main__':
 
-    test_e2e_cockroach_2clients(count=4)
+    test_e2e_cockroach_2clients(count=2)

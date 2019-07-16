@@ -55,8 +55,8 @@ def test_config_env():
     """ return the value stored in the environment """
 
     with workind_dir(wd):
-        pop(os.environ, 'TRAIL_CONFIG_TEST')
-        os.environ['TRAIL_CONFIG_TEST'] = '123'
+        pop(os.environ, 'TRACK_CONFIG_TEST')
+        os.environ['TRACK_CONFIG_TEST'] = '123'
         assert int(options('config.test')) == 123
 
 
@@ -64,8 +64,8 @@ def test_config_env_override():
     """ return the value stored in the environment """
 
     with workind_dir(wd):
-        pop(os.environ, 'TRAIL_CONFIG_SOMETHING2')
-        os.environ['TRAIL_CONFIG_SOMETHING2'] = '127'
+        pop(os.environ, 'TRACK_CONFIG_SOMETHING2')
+        os.environ['TRACK_CONFIG_SOMETHING2'] = '127'
         assert int(options('config.something2')) == 127
 
 
