@@ -13,7 +13,6 @@ from track.serialization import from_json, to_json
 class LocalStorage:
     # Main storage
     target_file: str = None
-
     _objects: Dict[UUID, any] = field(default_factory=dict)
     # Indexes
     _projects: Set[UUID] = field(default_factory=set)

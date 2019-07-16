@@ -1,3 +1,8 @@
+import time
+import datetime
+import json
+
+from filelock import FileLock
 from typing import Callable
 
 from track.utils.log import error, warning
@@ -11,8 +16,6 @@ from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
 from track.aggregators.aggregator import ValueAggregator
 from track.aggregators.aggregator import TimeSeriesAggregator
-
-import time
 
 
 value_aggregator = ValueAggregator.lazy()
@@ -32,7 +35,6 @@ def _make_container(step, aggregator):
 
 
 class FileProtocol(Protocol):
-
     def __init__(self, uri, strict=True):
         uri = parse_uri(uri)
 
@@ -43,9 +45,31 @@ class FileProtocol(Protocol):
             # file://test.json
             path = uri.get('address')
 
-        self.storage: LocalStorage = load_database(path)
+        self.path = path
         self.chronos = {}
         self.strict = strict
+
+        self.storage: LocalStorage = load_database(path)
+        self.lock = FileLock(f'{path}.lock')
+        self.revision = {
+            'revision': 0,
+            'last_updated': datetime.datetime.utcnow()
+        }
+
+    def write_rev(self):
+        with self.lock:
+            with open(f'{self.path}.rev', 'r') as rev:
+                json.dump(self.revision, rev)
+
+    def refresh(self):
+        with self.lock:
+            # get database revision
+            with open(f'{self.path}.rev', 'r') as rev:
+                new_rev = json.load(rev)
+
+            # database was updated while we were checking
+            if new_rev is None or new_rev['revision'] > self.revision['revision']:
+                self.storage = load_database(self.path)
 
     def log_trial_start(self, trial):
         acc = ValueAggregator()
@@ -113,31 +137,35 @@ class FileProtocol(Protocol):
         return self.storage.objects.get(project.uid)
 
     def new_project(self, project: Project):
-        if project.uid in self.storage.objects:
-            error(f'Cannot insert project; (uid: {project.uid}) already exists!')
-            return
 
-        self.storage.objects[project.uid] = project
-        self.storage.project_names[project.name] = project.uid
-        self.storage.projects.add(project.uid)
+        with self.lock:
+            if project.uid in self.storage.objects:
+                error(f'Cannot insert project; (uid: {project.uid}) already exists!')
+                return
+
+            self.storage.objects[project.uid] = project
+            self.storage.project_names[project.name] = project.uid
+            self.storage.projects.add(project.uid)
+
         return project
 
     def get_trial_group(self, group: TrialGroup):
         return self.storage.objects.get(group.uid)
 
     def new_trial_group(self, group: TrialGroup):
-        if group.uid in self.storage.objects:
-            error(f'Cannot insert group; (uid: {group.uid}) already exists!')
-            return
+        with self.lock:
+            if group.uid in self.storage.objects:
+                error(f'Cannot insert group; (uid: {group.uid}) already exists!')
+                return
 
-        project = self.storage.objects.get(group.project_id)
-        if self.strict:
-            assert project is not None, 'Cannot create a group without an associated project'
-            project.groups.append(group)
+            project = self.storage.objects.get(group.project_id)
+            if self.strict:
+                assert project is not None, 'Cannot create a group without an associated project'
+                project.groups.append(group)
 
-        self.storage.objects[group.uid] = group
-        self.storage.groups.add(group.uid)
-        self.storage.group_names[group.name] = group.uid
+            self.storage.objects[group.uid] = group
+            self.storage.groups.add(group.uid)
+            self.storage.group_names[group.name] = group.uid
         return group
 
     def get_trial(self, trial: Trial):
@@ -154,32 +182,33 @@ class FileProtocol(Protocol):
         return None
 
     def new_trial(self, trial: Trial):
-        if trial.uid in self.storage.objects:
-            trials = self.get_trial(trial)
+        with self.lock:
+            if trial.uid in self.storage.objects:
+                trials = self.get_trial(trial)
 
-            max_rev = 0
-            for t in trials:
-                max_rev = max(max_rev, t.revision)
+                max_rev = 0
+                for t in trials:
+                    max_rev = max(max_rev, t.revision)
 
-            warning(f'Trial was already completed. Increasing revision number (rev={max_rev + 1})')
-            trial.revision = max_rev + 1
-            trial._hash = None
+                warning(f'Trial was already completed. Increasing revision number (rev={max_rev + 1})')
+                trial.revision = max_rev + 1
+                trial._hash = None
 
-        self.storage.objects[trial.uid] = trial
-        self.storage.trials.add(trial.uid)
+            self.storage.objects[trial.uid] = trial
+            self.storage.trials.add(trial.uid)
 
-        if trial.project_id is not None:
-            project = self.storage.objects.get(trial.project_id)
+            if trial.project_id is not None:
+                project = self.storage.objects.get(trial.project_id)
 
-            if project is not None or self.strict:
-                project.trials.append(trial)
-        else:
-            warning('Orphan trial')
+                if project is not None or self.strict:
+                    project.trials.append(trial)
+            else:
+                warning('Orphan trial')
 
-        if trial.group_id is not None:
-            group = self.storage.objects.get(trial.group_id)
-            if group is not None or self.strict:
-                group.trials.append(trial.uid)
+            if trial.group_id is not None:
+                group = self.storage.objects.get(trial.group_id)
+                if group is not None or self.strict:
+                    group.trials.append(trial.uid)
 
         return trial
 
