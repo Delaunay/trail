@@ -28,11 +28,17 @@ class DelayedCall:
         self.fun = fun
         self.kwargs = kwargs
         self.returned = None
+        self.is_processing = False
 
     def __call__(self, *args, **kwargs):
+        if self.returned is None and self.is_processing:
+            raise RuntimeError('Circular dependencies')
+
         if self.returned is None:
             self.kwargs.update(kwargs)
+            self.is_processing = True
             self.returned = self.fun(**self.kwargs)
+            self.is_processing = False
             return self.returned
         else:
             return self.returned(*args, **kwargs)
@@ -46,8 +52,13 @@ class DelayedCall:
     def __getattr__(self, item):
         """ if the attribute does not exist we evaluate the partial call and execute that attribute """
 
+        if self.returned is None and self.is_processing:
+            raise RuntimeError('Circular dependencies')
+
         if self.returned is None:
+            self.is_processing = True
             self.returned = self.fun(**self.kwargs)
+            self.is_processing = False
 
         return getattr(self.returned, item)
 

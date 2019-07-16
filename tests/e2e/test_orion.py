@@ -29,7 +29,8 @@ def test_orion_poc(backend='file://orion_results.json'):
 
     orion.core.cli.main([
         '-vv', '--debug', 'hunt',
-        '--config', 'orion.yaml', '-n', 'default_algo', '--metric', 'error_rate', '--max-trials', '2',
+        '--config', 'orion.yaml', '-n', 'default_algo', #'--metric', 'error_rate',
+        '--max-trials', '10',
         './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', backend
     ])
 

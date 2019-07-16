@@ -131,10 +131,14 @@ class TrackClient:
         # if arguments are not specified do not create the trial just yet
         # wait for the user to be able to specify the parameters so we can have a meaningful hash
         if arguments is None and uid is None:
+            if is_delayed_call(self.trial):
+                raise RuntimeError('Trial needs arguments')
+
             self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
             return self.trial.get_future()
 
-        if self.trial is None:
+        # replace the trial or delayed trial by its actual value
+        if self.trial is None or is_delayed_call(self.trial):
             self.trial = self._make_trial(arguments, name=name)
 
         self.logger = TrialLogger(self.trial, self.protocol)
@@ -173,8 +177,9 @@ class TrackClient:
         # if we have a pending trial create it now as we have all the information
         if is_delayed_call(self.trial):
             self.trial(arguments=kwargs)
-
-        self.logger.log_arguments(**kwargs)
+        else:
+            # we do not need to log the arguments they are inside the trial already
+            self.logger.log_arguments(**kwargs)
 
         if show:
             print('-' * 80)
