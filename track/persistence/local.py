@@ -3,6 +3,7 @@ import logging
 from filelock import FileLock, logger as file_lock_logger
 from typing import Callable
 
+from track.configuration import options
 from track.utils.signal import SignalHandler
 from track.utils.log import error, warning, debug
 from track.structure import Project, Trial, TrialGroup
@@ -46,11 +47,65 @@ class _NoLockLock:
 
 def make_lock(name, eager):
     if eager:
-        return FileLock(name, timeout=5)
+        return FileLock(name, timeout=options('log.backend.lock_timeout', 5))
     return _NoLockLock()
 
 
-def lock_guard(readonly):
+class ConcurrentWrite(Exception):
+    pass
+
+
+def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
+    """Iterate through the arguments and replace stale objects by their new handle.
+    In case `atomic` is specified. we check that the old object and new object were not modified;
+    i.e we check that both db_version tags match
+    """
+    updated_args = []
+    updated_kwargs = {}
+
+    def select(a, b):
+        if a is not None:
+            if isinstance(a, list):
+                a = a[0]
+
+            if not atomic:
+                return a
+            elif a.metadata.get('_update_count', 0) == b.metadata.get('_update_count', 0):
+                return a
+            else:
+                raise ConcurrentWrite('Current write detected')
+        else:
+            return b
+
+    def update(arg):
+        if not atomic:
+            return arg
+
+        if isinstance(arg, Trial):
+            t = self.get_trial(arg)
+            return select(t, arg)
+
+        elif isinstance(arg, TrialGroup):
+            g = self.get_trial_group(arg)
+            return select(g, arg)
+
+        elif isinstance(arg, Project):
+            p = self.get_project(arg)
+            return select(p, arg)
+        else:
+            return arg
+
+    # we need to update the objects
+    for arg in args:
+        updated_args.append(update(arg))
+
+    for name, arg in kwargs.items():
+        updated_kwargs[name] = update(arg)
+
+    return args, kwargs
+
+
+def lock_guard(readonly, atomic=False):
     """Protect a function call with a lock. reload the database before the action and save it afterwards"""
 
     def lock_guard_decorator(fun):
@@ -59,6 +114,10 @@ def lock_guard(readonly):
             with self.lock:
                 if self.eager:
                     self.storage: LocalStorage = load_database(self.path)
+
+                # use heavily use obj references so when we reload the db
+                # we need to make sure those objects are updated
+                args, kwargs = update_references(self, args, kwargs, atomic)
 
                 val = fun(self, *args, **kwargs)
 
@@ -73,6 +132,7 @@ def lock_guard(readonly):
 
 
 lock_write = lock_guard(readonly=False)
+lock_atomic_write = lock_guard(readonly=False, atomic=True)
 lock_read = lock_guard(readonly=True)
 
 
@@ -133,17 +193,22 @@ class FileProtocol(Protocol):
         self.lock = make_lock(f'{path}.lock', eager)
         self.signal_handler = LockFileRemover(f'{path}.lock')
 
+    def _inc_trial(self, trial):
+        trial.metadata['_update_count'] = trial.metadata.get('_update_count', 0) + 1
+
     @lock_write
     def log_trial_start(self, trial):
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
@@ -155,6 +220,7 @@ class FileProtocol(Protocol):
                 trial.metadata[k] = container
 
             container.append(v)
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
@@ -166,12 +232,14 @@ class FileProtocol(Protocol):
             trial.chronos[name] = agg
 
         self.chronos[name] = time.time()
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
         start_time = self.chronos[name]
         acc = trial.chronos[name]
         acc.append(time.time() - start_time)
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
@@ -188,20 +256,24 @@ class FileProtocol(Protocol):
                 container.append((step, v))
             else:
                 container.append(v)
+        self._inc_trial(trial)
 
     @lock_write
     def add_trial_tags(self, trial, **kwargs):
         trial.tags.update(kwargs)
+        self._inc_trial(trial)
 
     @lock_write
     def log_trial_arguments(self, trial, **kwargs):
         trial.parameters.update(kwargs)
+        self._inc_trial(trial)
 
-    @lock_write
+    @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
         trial.status = status
         if error is not None:
             trial.errors.append(error)
+        self._inc_trial(trial)
 
     # Object Creation
     @lock_read
@@ -300,6 +372,7 @@ class FileProtocol(Protocol):
 
         trial.group_id = group.uid
         group.trials.append(trial.uid)
+        self._inc_trial(trial)
 
     def commit(self, file_name_override=None, **kwargs):
         with self.lock:

@@ -44,7 +44,7 @@ class TrackClient:
         self.set_version()
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
-        """ compute the version tag from the function call stack """
+        """Compute the version tag from the function call stack. Defaults to compute the hash of the executed file"""
         def version_compute():
             fun = version_fun
             if fun is None:
@@ -70,8 +70,8 @@ class TrackClient:
         if self.project is not None:
             return self.project
 
-        print(self.protocol)
         self.project = self.protocol.new_project(project)
+
         debug(f'set project to (project: {self.project})')
         return self.project
 

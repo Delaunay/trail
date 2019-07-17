@@ -34,7 +34,7 @@ def test_orion_poc(backend='file://orion_results.json'):
         './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', backend
     ])
 
-    #  '--batch-size~loguniform(32, 512, discrete=True)'
+    # '--batch-size~loguniform(32, 512, discrete=True)'
     # p.kill()
 
 
