@@ -64,6 +64,35 @@ class LocalStorage:
         with open(file_name_override, 'w') as output:
             json.dump(objects, output, indent=2)
 
+    def _insert_object(self, obj):
+        self._objects[obj.uid] = obj
+
+        if isinstance(obj, Trial):
+            self._trials.add(obj.uid)
+
+        elif isinstance(obj, TrialGroup):
+            self._groups.add(obj.uid)
+
+        elif isinstance(obj, Project):
+            self._projects.add(obj.uid)
+
+    def _update_object(self, obj, new):
+        pass
+
+    def reload(self, filename=None):
+        """Updates current objects with new data"""
+        if filename is None:
+            filename = self.target_file
+
+        new_storage = load_database(filename)
+        for uid, obj in new_storage.objects.items():
+            old_obj = self.objects.get(uid)
+
+            if old_obj is not None:
+                self._update_object(old_obj, obj)
+            else:
+                self._insert_object(obj)
+
 
 def merge_objects(o1, o2):
     if type(o1) != type(o2):

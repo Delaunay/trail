@@ -83,16 +83,16 @@ def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
         if a is not None:
             if isinstance(a, list):
                 a = a[0]
-
-            if not atomic:
-                return a
-            elif a.metadata.get('_update_count', 0) == b.metadata.get('_update_count', 0):
-                return a
-            else:
-                old = a.metadata.get('_update_count', 0)
-                new = b.metadata.get('_update_count', 0)
-
-                raise ConcurrentWrite(f'Concurrent write detected {old} != {new}')
+            return a
+            # if not atomic:
+            #     return a
+            # elif a.metadata.get('_update_count', 0) == b.metadata.get('_update_count', 0):
+            #     return a
+            # else:
+            #     old = a.metadata.get('_update_count', 0)
+            #     new = b.metadata.get('_update_count', 0)
+            #
+            #     raise ConcurrentWrite(f'Concurrent write detected {old} != {new}')
         else:
             return b
 
@@ -119,7 +119,10 @@ def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
 
     # we need to update the objects
     for arg in args:
-        updated_args.append(update(arg))
+        narg = update(arg)
+        if narg is arg and not _updating_references:
+            print_stack(narg)
+        updated_args.append(narg)
 
     for name, arg in kwargs.items():
         updated_kwargs[name] = update(arg)
@@ -136,10 +139,6 @@ def lock_guard(readonly, atomic=False):
             with self.lock:
                 if self.eager:
                     self.storage: LocalStorage = load_database(self.path)
-
-                # use heavily use obj references so when we reload the db
-                # we need to make sure those objects are updated
-                args, kwargs = update_references(self, args, kwargs, atomic)
 
                 val = fun(self, *args, **kwargs)
 
@@ -217,17 +216,21 @@ class FileProtocol(Protocol):
 
     def _inc_trial(self, trial):
         # print_stack()
+        # trial = self.get_trial(trial)[0]
         trial.metadata['_update_count'] = trial.metadata.get('_update_count', 0) + 1
 
     @lock_write
     def log_trial_start(self, trial):
+        trial = self.get_trial(trial)[0]
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
         self._inc_trial(trial)
+        return trial
 
     @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
+        trial = self.get_trial(trial)[0]
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
@@ -235,6 +238,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
+        trial = self.get_trial(trial)[0]
         for k, v in kwargs.items():
             container = trial.metadata.get(k)
 
@@ -249,6 +253,7 @@ class FileProtocol(Protocol):
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
                                end_callback=None):
+        trial = self.get_trial(trial)[0]
         agg = trial.chronos.get(name)
         if agg is None:
             agg = aggregator()
@@ -259,6 +264,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
+        trial = self.get_trial(trial)[0]
         start_time = self.chronos[name]
         acc = trial.chronos[name]
         acc.append(time.time() - start_time)
@@ -266,6 +272,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        trial = self.get_trial(trial)[0]
         for k, v in kwargs.items():
             container = trial.metrics.get(k)
 
@@ -283,16 +290,19 @@ class FileProtocol(Protocol):
 
     @lock_write
     def add_trial_tags(self, trial, **kwargs):
+        trial = self.get_trial(trial)[0]
         trial.tags.update(kwargs)
         self._inc_trial(trial)
 
     @lock_write
     def log_trial_arguments(self, trial, **kwargs):
+        trial = self.get_trial(trial)[0]
         trial.parameters.update(kwargs)
         self._inc_trial(trial)
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
+        trial = self.get_trial(trial)[0]
         trial.status = status
         if error is not None:
             trial.errors.append(error)
@@ -390,6 +400,8 @@ class FileProtocol(Protocol):
 
     @lock_write
     def add_group_trial(self, group, trial):
+        trial = self.get_trial(trial)[0]
+
         if group is None and not self.strict:
             return
 
