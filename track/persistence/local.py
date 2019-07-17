@@ -6,6 +6,7 @@ from typing import Callable
 from track.configuration import options
 from track.utils.signal import SignalHandler
 from track.utils.log import error, warning, debug
+from track.utils.debug import print_stack
 from track.structure import Project, Trial, TrialGroup
 from track.persistence.protocol import Protocol
 from track.persistence.storage import load_database, LocalStorage
@@ -55,11 +56,26 @@ class ConcurrentWrite(Exception):
     pass
 
 
+_updating_references = False
+
+
+class _UpdatingRefs:
+    def __enter__(self):
+        global _updating_references
+        _updating_references = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        global _updating_references
+        _updating_references = False
+
+
 def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
     """Iterate through the arguments and replace stale objects by their new handle.
     In case `atomic` is specified. we check that the old object and new object were not modified;
     i.e we check that both db_version tags match
     """
+    global _updating_references
+
     updated_args = []
     updated_kwargs = {}
 
@@ -73,24 +89,30 @@ def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
             elif a.metadata.get('_update_count', 0) == b.metadata.get('_update_count', 0):
                 return a
             else:
-                raise ConcurrentWrite('Current write detected')
+                old = a.metadata.get('_update_count', 0)
+                new = b.metadata.get('_update_count', 0)
+
+                raise ConcurrentWrite(f'Concurrent write detected {old} != {new}')
         else:
             return b
 
     def update(arg):
-        if not atomic:
+        if _updating_references:
             return arg
 
         if isinstance(arg, Trial):
-            t = self.get_trial(arg)
+            with _UpdatingRefs():
+                t = self.get_trial(arg)
             return select(t, arg)
 
         elif isinstance(arg, TrialGroup):
-            g = self.get_trial_group(arg)
+            with _UpdatingRefs():
+                g = self.get_trial_group(arg)
             return select(g, arg)
 
         elif isinstance(arg, Project):
-            p = self.get_project(arg)
+            with _UpdatingRefs():
+                p = self.get_project(arg)
             return select(p, arg)
         else:
             return arg
@@ -194,6 +216,7 @@ class FileProtocol(Protocol):
         self.signal_handler = LockFileRemover(f'{path}.lock')
 
     def _inc_trial(self, trial):
+        # print_stack()
         trial.metadata['_update_count'] = trial.metadata.get('_update_count', 0) + 1
 
     @lock_write
@@ -372,7 +395,6 @@ class FileProtocol(Protocol):
 
         trial.group_id = group.uid
         group.trials.append(trial.uid)
-        self._inc_trial(trial)
 
     def commit(self, file_name_override=None, **kwargs):
         with self.lock:
