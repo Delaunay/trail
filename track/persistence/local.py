@@ -1,10 +1,10 @@
 import time
-
-from filelock import FileLock
+import logging
+from filelock import FileLock, logger as file_lock_logger
 from typing import Callable
 
 from track.utils.signal import SignalHandler
-from track.utils.log import error, warning
+from track.utils.log import error, warning, debug
 from track.structure import Project, Trial, TrialGroup
 from track.persistence.protocol import Protocol
 from track.persistence.storage import load_database, LocalStorage
@@ -21,6 +21,8 @@ value_aggregator = ValueAggregator.lazy()
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
 ts_aggregator = TimeSeriesAggregator.lazy()
+
+file_lock_logger().setLevel(logging.ERROR)
 
 
 def _make_container(step, aggregator):
@@ -58,10 +60,12 @@ def lock_guard(readonly):
                 if self.eager:
                     self.storage: LocalStorage = load_database(self.path)
 
-                fun(self, *args, **kwargs)
+                val = fun(self, *args, **kwargs)
 
                 if self.eager and not readonly:
                     self.commit()
+
+            return val
 
         return _lock_guard
 
@@ -86,6 +90,9 @@ class LockFileRemover(SignalHandler):
         self.remove()
 
     def sigint(self, signum, frame):
+        self.remove()
+
+    def atexit(self):
         self.remove()
 
 
@@ -199,17 +206,21 @@ class FileProtocol(Protocol):
     # Object Creation
     @lock_read
     def get_project(self, project: Project):
+        debug(f'look for (project: {project.name})')
         return self.storage.objects.get(project.uid)
 
     @lock_write
     def new_project(self, project: Project):
+        debug(f'create new (project: {project.name})')
+
         if project.uid in self.storage.objects:
             error(f'Cannot insert project; (uid: {project.uid}) already exists!')
-            return
+            return self.get_project(project)
 
         self.storage.objects[project.uid] = project
         self.storage.project_names[project.name] = project.uid
         self.storage.projects.add(project.uid)
+
         return project
 
     @lock_read

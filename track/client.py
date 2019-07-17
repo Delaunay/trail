@@ -16,7 +16,7 @@ from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
 from track.utils.delay import delay_call, is_delayed_call
-from track.utils.log import warning
+from track.utils.log import warning, debug
 
 
 # Client has a lot of methods on purpose. This is our unified API
@@ -70,7 +70,9 @@ class TrackClient:
         if self.project is not None:
             return self.project
 
+        print(self.protocol)
         self.project = self.protocol.new_project(project)
+        debug(f'set project to (project: {self.project})')
         return self.project
 
     def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):

@@ -5,7 +5,7 @@ import sys
 logging.basicConfig(
     format='[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s',
     stream=sys.stdout,
-    level=logging.INFO)
+    level=logging.DEBUG)
 
 trail_logger = logging.getLogger('TRACK')
 

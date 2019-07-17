@@ -28,6 +28,9 @@ class LogSignalHandler(SignalHandler):
     def sigint(self, signum, frame):
         self.logger.set_status(Status.Interrupted, error=frame)
 
+    def atexit(self):
+        self.logger.set_status(Status.Completed)
+
 
 def _make_container(step, aggregator):
     if step is None:

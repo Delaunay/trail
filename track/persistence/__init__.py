@@ -1,4 +1,4 @@
-from track.utils.log import warning
+from track.utils.log import warning, debug
 from track.persistence.utils import parse_uri
 from track.persistence.multiplexer import ProtocolMultiplexer
 
@@ -45,8 +45,10 @@ def get_protocol(backend_name):
         log = _protocols.get('__default__')
 
     if log is make_local:
+        debug('return local protocol')
         return log(backend_name)
     else:
+        debug('return multiplexed protocol')
         return ProtocolMultiplexer(
             # Make a file Protocol to log everything in memory as well as remotely
             make_local('file:', strict=False, eager=False),
