@@ -3,3 +3,4 @@ typing
 git+git://github.com/Delaunay/benchutils@master#egg=benchutils
 
 cryptography
+filelock

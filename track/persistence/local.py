@@ -89,7 +89,6 @@ class LockFileRemover(SignalHandler):
         self.remove()
 
 
-
 class FileProtocol(Protocol):
     """Local File storage to manage experiments
 
