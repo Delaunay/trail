@@ -56,7 +56,7 @@ def end_to_end_train(backend, argv=None):
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')
 
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and args.batch_size == 32:
         args.batch_size = 4096
 
     args = trial.get_arguments(args, show=True)

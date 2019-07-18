@@ -2,6 +2,7 @@ import os
 import json
 from dataclasses import dataclass, field
 from typing import Dict, Set
+import tempfile
 from uuid import UUID
 
 from track.utils.log import error, warning, debug
@@ -61,8 +62,13 @@ class LocalStorage:
         for uid in self._projects:
             objects.append(to_json(self._objects[uid]))
 
-        with open(file_name_override, 'w') as output:
+        file_name = tempfile.mktemp('track_uncommitted')
+
+        with open(file_name, 'w') as output:
             json.dump(objects, output, indent=2)
+
+        # mv is kind of atomic so this prevent generating half generated files
+        os.rename(file_name, file_name_override)
 
     def _insert_object(self, obj):
         self._objects[obj.uid] = obj

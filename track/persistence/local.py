@@ -216,7 +216,7 @@ class FileProtocol(Protocol):
     def set_trial_status(self, trial, status, error=None):
         trial.status = status
         if error is not None:
-            trial.errors.append(error)
+            trial.errors.append(str(error))
         self._inc_trial(trial)
 
     # Object Creation
