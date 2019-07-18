@@ -72,7 +72,7 @@ class TrackClient:
 
         self.project = self.protocol.new_project(project)
 
-        debug(f'set project to (project: {self.project})')
+        debug(f'set project to (project: {self.project.name})')
         return self.project
 
     def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):

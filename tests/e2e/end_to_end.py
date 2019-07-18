@@ -28,7 +28,7 @@ def end_to_end_train(backend, argv=None):
     parser.add_argument('--cuda', action='store_true', dest='cuda', default=True, help='enable cuda')
     parser.add_argument('--no-cuda', action='store_false', dest='cuda', help='disable cuda')
 
-    parser.add_argument('--workers', '-j', type=int, default=4, help='number of workers/processors to use')
+    parser.add_argument('--workers', '-j', type=int, default=0, help='number of workers/processors to use')
     parser.add_argument('--seed', '-s', type=int, default=0, help='seed to use')
     parser.add_argument('--epochs', '-e', type=int, default=2, help='number of epochs')
 

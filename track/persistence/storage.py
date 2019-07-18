@@ -77,7 +77,13 @@ class LocalStorage:
             self._projects.add(obj.uid)
 
     def _update_object(self, obj, new):
-        pass
+        if isinstance(obj, Trial):
+            obj.metadata = new.metadata
+            obj.status = new.status
+
+        obj.name = new.name
+        obj.description = new.description
+        obj.tags = new.tags
 
     def reload(self, filename=None):
         """Updates current objects with new data"""
