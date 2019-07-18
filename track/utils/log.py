@@ -10,6 +10,7 @@ def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=Non
 
 def make_logger(name):
     logger = logging.getLogger(name)
+    logger.propagate = False
     logging.setLogRecordFactory(log_record)
 
     ch = logging.StreamHandler()
@@ -20,11 +21,14 @@ def make_logger(name):
         '[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
     ch.setFormatter(formatter)
 
-    logger.addHandler(ch)
+    if not logger.handlers:
+        logger.addHandler(ch)
+
     return logger
 
 
-trail_logger = make_logger('TRACK')
+if globals().get('trail_logger') is None:
+    trail_logger = make_logger('TRACK')
 
 
 def set_log_level(level=logging.INFO):
