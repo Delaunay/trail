@@ -7,8 +7,8 @@ def test_project():
         name='1',
         description='2',
         tags=['0', '1'],
-        groups=[TrialGroup(name='TG', project_id='1')],
-        trials=[]
+        groups=set([TrialGroup(name='TG', project_id='1')]),
+        trials=set()
     )
 
     ps = from_json(to_json(p))
@@ -20,7 +20,7 @@ def test_trial_group():
         name='1',
         description='2',
         tags=['0', '1'],
-        trials=[],
+        trials=set(),
         project_id=1
     )
 
