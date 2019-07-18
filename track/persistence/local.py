@@ -6,7 +6,7 @@ from typing import Callable
 from track.configuration import options
 from track.utils.signal import SignalHandler
 from track.utils.log import error, warning, debug
-from track.utils.debug import print_stack
+
 from track.structure import Project, Trial, TrialGroup
 from track.persistence.protocol import Protocol
 from track.persistence.storage import load_database, LocalStorage
@@ -50,84 +50,6 @@ def make_lock(name, eager):
     if eager:
         return FileLock(name, timeout=options('log.backend.lock_timeout', 5))
     return _NoLockLock()
-
-
-class ConcurrentWrite(Exception):
-    pass
-
-
-_updating_references = False
-
-
-class _UpdatingRefs:
-    def __enter__(self):
-        global _updating_references
-        _updating_references = True
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        global _updating_references
-        _updating_references = False
-
-
-def update_references(self: 'FileProtocol', args, kwargs, atomic=False):
-    """Iterate through the arguments and replace stale objects by their new handle.
-    In case `atomic` is specified. we check that the old object and new object were not modified;
-    i.e we check that both db_version tags match
-    """
-    global _updating_references
-
-    updated_args = []
-    updated_kwargs = {}
-
-    def select(a, b):
-        if a is not None:
-            if isinstance(a, list):
-                a = a[0]
-            return a
-            # if not atomic:
-            #     return a
-            # elif a.metadata.get('_update_count', 0) == b.metadata.get('_update_count', 0):
-            #     return a
-            # else:
-            #     old = a.metadata.get('_update_count', 0)
-            #     new = b.metadata.get('_update_count', 0)
-            #
-            #     raise ConcurrentWrite(f'Concurrent write detected {old} != {new}')
-        else:
-            return b
-
-    def update(arg):
-        if _updating_references:
-            return arg
-
-        if isinstance(arg, Trial):
-            with _UpdatingRefs():
-                t = self.get_trial(arg)
-            return select(t, arg)
-
-        elif isinstance(arg, TrialGroup):
-            with _UpdatingRefs():
-                g = self.get_trial_group(arg)
-            return select(g, arg)
-
-        elif isinstance(arg, Project):
-            with _UpdatingRefs():
-                p = self.get_project(arg)
-            return select(p, arg)
-        else:
-            return arg
-
-    # we need to update the objects
-    for arg in args:
-        narg = update(arg)
-        if narg is arg and not _updating_references:
-            print_stack(narg)
-        updated_args.append(narg)
-
-    for name, arg in kwargs.items():
-        updated_kwargs[name] = update(arg)
-
-    return args, kwargs
 
 
 def lock_guard(readonly, atomic=False):
