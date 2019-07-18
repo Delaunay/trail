@@ -53,7 +53,7 @@ class SerializerTrialGroup(SerializerAspect):
             'description': obj.description,
             'tags': obj.tags,
             'project_id': obj.project_id,
-            'trials': obj.trials
+            'trials': list(obj.trials)
         }
 
 
@@ -125,8 +125,8 @@ def from_json(obj: Dict[str, any]) -> any:
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],
-            groups=[from_json(g) for g in obj['groups']],
-            trials=[from_json(t) for t in obj['trials']],
+            groups=set([from_json(g) for g in obj['groups']]),
+            trials=set([from_json(t) for t in obj['trials']]),
         )
 
     elif dtype == 'trial_group':
@@ -135,7 +135,7 @@ def from_json(obj: Dict[str, any]) -> any:
             name=obj['name'],
             description=obj['description'],
             tags=obj['tags'],
-            trials=obj['trials'],
+            trials=set(obj['trials']),
             project_id=obj['project_id']
         )
 

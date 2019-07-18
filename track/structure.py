@@ -1,6 +1,6 @@
 """ hold basic data type classes that all backends need to implement """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
 from track.versioning import compute_hash
@@ -120,7 +120,7 @@ class TrialGroup:
     name: Optional[str] = None
     description: Optional[str] = None
     tags: Dict[str, any] = field(default_factory=dict)
-    trials: List[Trial] = field(default_factory=list)
+    trials: Set[Trial] = field(default_factory=set)
 
     project_id: Optional[int] = None
 
@@ -148,8 +148,8 @@ class Project:
     name: Optional[str] = None
     description: Optional[str] = None
     tags: Dict[str, any] = field(default_factory=dict)
-    groups: List[TrialGroup] = field(default_factory=list)
-    trials: List[Trial] = field(default_factory=list)
+    groups: Set[TrialGroup] = field(default_factory=set)
+    trials: Set[Trial] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self.uid)

@@ -330,7 +330,7 @@ class FileProtocol(Protocol):
         project = self.storage.objects.get(group.project_id)
         if self.strict:
             assert project is not None, 'Cannot create a group without an associated project'
-            project.groups.append(group)
+            project.groups.add(group)
 
         self.storage.objects[group.uid] = group
         self.storage.groups.add(group.uid)
@@ -371,23 +371,21 @@ class FileProtocol(Protocol):
             project = self.storage.objects.get(trial.project_id)
 
             if project is not None or self.strict:
-                project.trials.append(trial)
+                project.trials.add(trial)
         else:
             warning('Orphan trial')
 
         if trial.group_id is not None:
             group = self.storage.objects.get(trial.group_id)
             if group is not None or self.strict:
-                group.trials.append(trial.uid)
+                group.trials.add(trial.uid)
 
         return trial
 
     @lock_write
     def add_project_trial(self, project, trial):
         trial.project_id = project.uid
-
-        if trial not in set(project.trials):
-            project.trials.append(trial)
+        project.trials.add(trial)
 
     @lock_write
     def add_group_trial(self, group, trial):
@@ -395,9 +393,7 @@ class FileProtocol(Protocol):
             return
 
         trial.group_id = group.uid
-
-        if trial.uid not in set(group.trials):
-            group.trials.append(trial.uid)
+        group.trials.add(trial.uid)
 
     def commit(self, file_name_override=None, **kwargs):
         with self.lock:
