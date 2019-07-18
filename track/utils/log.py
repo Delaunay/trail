@@ -2,12 +2,29 @@ import logging
 import sys
 
 
-logging.basicConfig(
-    format='[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s',
-    stream=sys.stdout,
-    level=logging.DEBUG)
+def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
+    start = path.rfind('track')
+    path = path[start:]
+    return logging.LogRecord(name, level, path, lno, msg, args, exc_info, func, sinfo, **kwargs)
 
-trail_logger = logging.getLogger('TRACK')
+
+def make_logger(name):
+    logger = logging.getLogger(name)
+    logging.setLogRecordFactory(log_record)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.stream = sys.stdout
+
+    formatter = logging.Formatter(
+        '[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
+    ch.setFormatter(formatter)
+
+    logger.addHandler(ch)
+    return logger
+
+
+trail_logger = make_logger('TRACK')
 
 
 def set_log_level(level=logging.INFO):
