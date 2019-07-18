@@ -40,6 +40,9 @@ class CustomStatus:
         return self._value
 
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
+
         return self.value == other.value and self.name == other.name
 
 
