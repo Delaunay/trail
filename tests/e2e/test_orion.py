@@ -52,7 +52,7 @@ def mongodb():
 
 
 if __name__ == '__main__':
-    os.environ['ORION_STORAGE'] = 'track:file://orion_results.json'
+    os.environ['ORION_STORAGE'] = 'track:file://orion_results.json?objective=epoch_loss'
 
     _, uri = os.environ.get('ORION_STORAGE', 'track:file://orion_results.json').split(':', maxsplit=1)
 

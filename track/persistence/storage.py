@@ -110,6 +110,7 @@ class LocalStorage:
             obj.metadata = new.metadata
             obj.status = new.status
             obj.metrics.update(new.metrics)
+            obj.parameters.update(new.parameters)
 
         obj.name = new.name
         obj.description = new.description

@@ -439,10 +439,15 @@ def query_lte(obj, attrs, val):
     return _get_attribute(obj, attrs) <= val
 
 
+def query_gt(obj, attrs, val):
+    return _get_attribute(obj, attrs) > val
+
+
 _query_fun = {
     '$in': query_in,
     '$ne': query_ne,
-    '$lte': query_lte
+    '$lte': query_lte,
+    '$gt': query_gt
 }
 
 
