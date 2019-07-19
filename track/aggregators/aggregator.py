@@ -119,8 +119,8 @@ class TimeSeriesAggregator(Aggregator):
 class ValueAggregator(Aggregator):
     """ Does not Aggregate only keeps the latest value """
 
-    def __init__(self):
-        self.value = None
+    def __init__(self, val=None):
+        self.value = val
 
     def append(self, other):
         self.value = other

@@ -156,14 +156,15 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
-        for k, v in kwargs.items():
-            container = trial.metadata.get(k)
-
-            if container is None:
-                container = _make_container(None, aggregator)
-                trial.metadata[k] = container
-
-            container.append(v)
+        trial.metadata.update(kwargs)
+        # for k, v in kwargs.items():
+        #     container = trial.metadata.get(k)
+        #
+        #     if container is None:
+        #         container = _make_container(None, aggregator)
+        #         trial.metadata[k] = container
+        #
+        #     container.append(v)
         self._inc_trial(trial)
 
     @lock_write
@@ -356,6 +357,16 @@ class FileProtocol(Protocol):
         return self._fetch_objects(self.storage.projects, query)
 
 
+def _get_attribute(obj, attrs):
+    attribute = getattr(obj, attrs[0])
+    for key in attrs[1:]:
+        attribute = attribute.get(key)
+        if attribute is None:
+            return None
+
+    return attribute
+
+
 def execute_query(obj, query):
     """ check if the object `obj` matches the query.
         The query is a dictionary specifying constraint on each of the object attributes
@@ -378,28 +389,29 @@ def execute_query(obj, query):
     else:
         items = list(query)
 
-    for attr, condition in items:
-        if not hasattr(obj, attr):
-            warning(f'(obj: {type(obj)}) has no (attribute: {attr})')
-            continue
+    for attrs, condition in items:
+        attrs = attrs.split('.')
+
+        if not hasattr(obj, attrs[0]):
+            raise RuntimeError(f'(obj: {type(obj)}) has no (attribute: {attrs[0]})')
 
         # This is a complex query that needs to be further processed
         if isinstance(condition, dict):
             if len(condition) == 1:
                 fun_name, args = list(condition.items())[0]
 
-                fun = _query_fun.get('$in')
+                fun = _query_fun.get(fun_name)
                 if fun is None:
                     raise RuntimeError(f'(function: {fun_name}) is not understood')
 
-                is_selected &= fun(obj, attr, args)
+                is_selected &= fun(obj, attrs, args)
 
             else:
                 raise RuntimeError(f'(query:  {query}) was not understood')
 
         # this is a simple value
         else:
-            is_selected &= getattr(obj, attr) == condition
+            is_selected &= _get_attribute(obj, attrs) == condition
 
         # shortcut
         if not is_selected:
@@ -408,12 +420,22 @@ def execute_query(obj, query):
     return is_selected
 
 
-def query_in(obj, attr, choices):
-    return getattr(obj, attr) in choices
+def query_in(obj, attrs, choices):
+    return _get_attribute(obj, attrs) in choices
+
+
+def query_ne(obj, attrs, val):
+    return _get_attribute(obj, attrs) != val
+
+
+def query_lte(obj, attrs, val):
+    return _get_attribute(obj, attrs) <= val
 
 
 _query_fun = {
-    '$in': query_in
+    '$in': query_in,
+    '$ne': query_ne,
+    '$lte': query_lte
 }
 
 

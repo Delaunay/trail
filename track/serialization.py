@@ -1,5 +1,6 @@
 from uuid import UUID
 from typing import Dict
+import datetime
 
 from track.chrono import ChronoContext
 from track.structure import Project, Trial, TrialGroup, Status, status
@@ -83,18 +84,25 @@ class SerializerStatus(SerializerAspect):
         }
 
 
+class SerializerDatetime(SerializerAspect):
+    def to_json(self, obj: datetime.datetime, short=False):
+        return (obj - datetime.datetime(1970, 1, 1)).total_seconds()
+
+
 serialization_aspects = {
     UUID: SerializerUUID(),
     Project: SerializerProject(),
     TrialGroup: SerializerTrialGroup(),
     Trial: SerializerTrial(),
     ChronoContext: SerializerChronoContext(),
-    Status: SerializerStatus()
+    Status: SerializerStatus(),
+    datetime.datetime: SerializerDatetime()
 }
 
 
 def to_json(k: any, short=False):
     aspect = serialization_aspects.get(type(k))
+
     if aspect is not None:
         return aspect.to_json(k, short)
 
@@ -150,7 +158,7 @@ def from_json(obj: Dict[str, any]) -> any:
             group_id=obj['group_id'],
             project_id=obj['project_id'],
             parameters=obj['parameters'],
-            metadata=obj['metadata'],
+            metadata=to_json(obj['metadata']),
             metrics=obj['metrics'],
             chronos=obj['chronos'],
             errors=obj['errors'],
