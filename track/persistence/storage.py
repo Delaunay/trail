@@ -5,10 +5,10 @@ from typing import Dict, Set
 import tempfile
 from uuid import UUID
 
-from track.aggregators.aggregator import ValueAggregator
 from track.utils.log import error, warning, debug
 from track.structure import Project, Trial, TrialGroup
 from track.serialization import from_json, to_json
+from track.aggregators.aggregator import ValueAggregator, StatAggregator, RingAggregator, TimeSeriesAggregator
 
 
 @dataclass
@@ -24,6 +24,16 @@ class LocalStorage:
     _project_names: Dict[str, UUID] = field(default_factory=dict)
     _group_names: Dict[str, UUID] = field(default_factory=dict)
     _trial_names: Dict[str, UUID] = field(default_factory=dict)
+
+    _old_rev_tags: Dict[str, int] = field(default_factory=dict)
+
+    def get_previous_version_tag(self, obj):
+        return self._old_rev_tags.get(obj.uid)
+
+    def get_current_version_tag(self, obj):
+        if isinstance(obj, Trial):
+            return obj.metadata.get('_update_count', 0)
+        return None
 
     @property
     def objects(self) -> Dict[UUID, any]:
@@ -85,8 +95,21 @@ class LocalStorage:
 
     def _update_object(self, obj, new):
         if isinstance(obj, Trial):
+            # this is for atomic updates
+            obj_oversion = obj.metadata.get('_update_count', 0)
+            obj_nversion = new.metadata.get('_update_count', 0)
+            self._old_rev_tags[obj.uid] = obj_oversion
+
+            # the object has not changed
+            if obj_oversion == obj_nversion:
+                return
+
+            if obj_oversion > obj_nversion:
+                raise RuntimeError("Cannot update object with older version!")
+
             obj.metadata = new.metadata
             obj.status = new.status
+            obj.metrics.update(new.metrics)
 
         obj.name = new.name
         obj.description = new.description

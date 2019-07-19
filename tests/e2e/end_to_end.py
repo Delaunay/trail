@@ -12,7 +12,7 @@ import torchvision.models as models
 import torch.nn.functional as F
 import argparse
 
-from orion.client import report_results
+# from orion.client import report_results
 
 sys.stderr = sys.stdout
 
@@ -219,17 +219,18 @@ def end_to_end_train(backend, argv=None):
             trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
             # ---
 
-    try:
-        report_results([{
-            'name': 'loss',
-            'type': 'objective',
-            'value': epoch_loss
-        }])
-    except RuntimeWarning:
-        pass
+    # try:
+    #     report_results([{
+    #         'name': 'loss',
+    #         'type': 'objective',
+    #         'value': epoch_loss
+    #     }])
+    # except RuntimeWarning:
+    #     pass
 
     trial.report()
     trial.save()
+    print('Finished')
 
 
 if __name__ == '__main__':

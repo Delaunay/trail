@@ -1,5 +1,6 @@
 import json
 import inspect
+import os
 from typing import Union, Callable, Dict
 
 from argparse import ArgumentParser, Namespace
@@ -19,7 +20,6 @@ from track.utils.delay import delay_call, is_delayed_call
 from track.utils.log import warning, debug
 
 
-# Client has a lot of methods on purpose. This is our unified API
 # pylint: disable=too-many-public-methods
 class TrackClient:
     """ TrackClient. A client tracks a single Trial being ran"""
@@ -43,6 +43,20 @@ class TrackClient:
         self.version = None
         self.set_version()
 
+        # Orion integration
+        # -----------------
+        orion_name = os.environ.get('ORION_PROJECT')
+        if orion_name is not None:
+            self.set_project(name=orion_name)
+
+        orion_exp = os.environ.get('ORION_EXPERIMENT')
+        if orion_exp is not None:
+            self.set_group(name=orion_exp)
+
+        orion_trial = os.environ.get('ORION_TRIAL_ID')
+        if orion_trial is not None:
+            self.set_trial(uid=orion_trial)
+
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
         """Compute the version tag from the function call stack. Defaults to compute the hash of the executed file"""
         def version_compute():
@@ -58,7 +72,11 @@ class TrackClient:
         self.version = version_compute
         return self
 
-    def set_project(self, project=None, name=None, tags=None, description=None):
+    def set_project(self, project=None, name=None, tags=None, description=None, force=False):
+        if self.project is not None and not force:
+            warning('Project is already set, to override use force=True')
+            return self.project
+
         if project is None:
             project = Project(name=name, tags=tags, description=description)
 
@@ -75,7 +93,11 @@ class TrackClient:
         debug(f'set project to (project: {self.project.name})')
         return self.project
 
-    def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):
+    def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None, force=False):
+        if self.group is not None and not force:
+            warning('Group is already set, to override use force=True')
+            return self.group
+
         if group is None:
             group = TrialGroup(name=name, tags=tags, description=description, project_id=self.project.uid)
 
@@ -110,7 +132,11 @@ class TrackClient:
         trial = self.protocol.new_trial(trial)
         return trial
 
-    def set_trial(self, uid=None, hash=None, revision=None):
+    def set_trial(self, uid=None, hash=None, revision=None, force=False):
+        if self.trial is not None and not force:
+            warning('Trial is already set, to override use force=True')
+            return self.logger
+
         if uid is not None:
             hash, revision = uid.split('_')
         else:
@@ -124,15 +150,14 @@ class TrackClient:
         except IndexError:
             raise RuntimeError(f'cannot set trial (id: {uid}, hash:{hash}) it does not exist')
 
-    def new_trial(self, arguments=None, name=None, description=None, **kwargs):
-        uid = options('trial.uid', None)
-
-        if uid is not None:
-            return self.set_trial(uid=uid)
+    def new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
+        if self.trial is not None and not force:
+            warning('Trial is already set, to override use force=True')
+            return self.logger
 
         # if arguments are not specified do not create the trial just yet
         # wait for the user to be able to specify the parameters so we can have a meaningful hash
-        if arguments is None and uid is None:
+        if arguments is None:
             if is_delayed_call(self.trial):
                 raise RuntimeError('Trial needs arguments')
 

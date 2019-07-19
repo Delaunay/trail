@@ -52,4 +52,8 @@ def mongodb():
 
 
 if __name__ == '__main__':
-    test_orion_poc()
+    os.environ['ORION_STORAGE'] = 'track:file://orion_results.json'
+
+    _, uri = os.environ.get('ORION_STORAGE', 'track:file://orion_results.json').split(':', maxsplit=1)
+
+    test_orion_poc(backend=uri)

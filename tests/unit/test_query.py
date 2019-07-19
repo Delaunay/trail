@@ -1,5 +1,5 @@
 from track.persistence.local import execute_query
-from track.structure import Trial, Status
+from track.structure import Trial, Status, CustomStatus
 
 
 def test_local_query():
@@ -54,7 +54,24 @@ def test_execute_query_status():
     assert len(arr) == 20
 
 
+def test_execute_query_custom_status():
+    data = [
+        Trial(name=str(i), status=CustomStatus('new', 1)) for i in range(0, 20)
+    ] + [
+        Trial(name=str(i), status=CustomStatus('interrupted', 1)) for i in range(0, 20)
+    ]
+
+    query = dict(
+        status={
+            '$in': ['new', 'interrupted']
+        }
+    )
+
+    arr = check_query(data, query)
+    assert len(arr) == 40
+
+
 if __name__ == '__main__':
-    test_execute_query_status()
+    test_execute_query_custom_status()
 
 

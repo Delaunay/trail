@@ -52,21 +52,30 @@ def make_lock(name, eager):
     return _NoLockLock()
 
 
+_lock_guard_depth = 0
+
+
 def lock_guard(readonly, atomic=False):
     """Protect a function call with a lock. reload the database before the action and save it afterwards"""
 
     def lock_guard_decorator(fun):
 
         def _lock_guard(self, *args, **kwargs):
+            global _lock_guard_depth
+
             with self.lock:
-                if self.eager:
+                # avoid reloading the file if the database is already locked
+                # in a previous call to _lock_guard
+                if self.eager and _lock_guard_depth == 0:
                     self.storage.reload()
 
+                _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
 
                 if self.eager and not readonly:
                     self.commit()
 
+                _lock_guard_depth -= 1
             return val
 
         return _lock_guard
@@ -157,14 +166,6 @@ class FileProtocol(Protocol):
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         trial.metadata.update(kwargs)
-        # for k, v in kwargs.items():
-        #     container = trial.metadata.get(k)
-        #
-        #     if container is None:
-        #         container = _make_container(None, aggregator)
-        #         trial.metadata[k] = container
-        #
-        #     container.append(v)
         self._inc_trial(trial)
 
     @lock_write
@@ -215,6 +216,12 @@ class FileProtocol(Protocol):
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
+        previous_version = self.storage.get_previous_version_tag(trial)
+        current_version = self.storage.get_current_version_tag(trial)
+
+        if previous_version != current_version:
+            raise RuntimeError(f'The trial was modified! {previous_version} != {current_version}')
+
         trial.status = status
         if error is not None:
             trial.errors.append(str(error))
