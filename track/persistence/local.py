@@ -225,9 +225,9 @@ class FileProtocol(Protocol):
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
-        #previous_version = self.storage.get_previous_version_tag(trial)
-        #current_version = self.storage.get_current_version_tag(trial)
-        #if previous_version != current_version:
+        # previous_version = self.storage.get_previous_version_tag(trial)
+        # current_version = self.storage.get_current_version_tag(trial)
+        # if previous_version != current_version:
         #    raise RuntimeError(f'The trial was modified! {previous_version} != {current_version}')
 
         trial.status = status

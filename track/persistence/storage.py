@@ -8,7 +8,6 @@ from uuid import UUID
 from track.utils.log import error, warning, debug
 from track.structure import Project, Trial, TrialGroup
 from track.serialization import from_json, to_json
-from track.aggregators.aggregator import ValueAggregator, StatAggregator, RingAggregator, TimeSeriesAggregator
 
 
 @dataclass

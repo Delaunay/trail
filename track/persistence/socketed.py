@@ -42,9 +42,9 @@ def recv(socket, timeout=None):
     data = socket.recv(4096)
     size = struct.unpack('I', data[0:4])[0]
 
-    #info(socket.server_side)
-    #info(size)
-    #info(data)
+    # info(socket.server_side)
+    # info(size)
+    # info(data)
 
     elapsed = 0
     while len(data) < size:

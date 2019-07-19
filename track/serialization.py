@@ -129,6 +129,10 @@ def from_json(obj: Dict[str, any]) -> any:
     dtype = obj.get('dtype')
 
     if dtype == 'project':
+        from track.utils.debug import print_stack
+        if obj.get('metadata') is None:
+            print_stack()
+
         return Project(
             _uid=obj['uid'],
             name=obj['name'],
