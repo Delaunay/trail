@@ -33,6 +33,8 @@ class LocalStorage:
     def get_current_version_tag(self, obj):
         if isinstance(obj, Trial):
             return obj.metadata.get('_update_count', 0)
+        else:
+            print(obj)
         return None
 
     @property
@@ -105,16 +107,21 @@ class LocalStorage:
                 return
 
             if obj_oversion > obj_nversion:
-                raise RuntimeError("Cannot update object with older version!")
+                raise RuntimeError(f'Cannot update object with older version {obj_oversion} > {obj_nversion}!')
 
-            obj.metadata = new.metadata
             obj.status = new.status
             obj.metrics.update(new.metrics)
             obj.parameters.update(new.parameters)
 
+        elif isinstance(obj, Project):
+            obj.trials.update(set(new.trials))
+
+        elif isinstance(obj, TrialGroup):
+            obj.trials.update(set(new.trials))
+
         obj.name = new.name
         obj.description = new.description
-        obj.tags = new.tags
+        obj.metadata = new.metadata
 
     def reload(self, filename=None):
         """Updates current objects with new data"""

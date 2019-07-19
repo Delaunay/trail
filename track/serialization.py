@@ -52,7 +52,7 @@ class SerializerTrialGroup(SerializerAspect):
             'uid': to_json(obj.uid),
             'name': obj.name,
             'description': obj.description,
-            'tags': obj.tags,
+            'metadata': obj.metadata,
             'project_id': obj.project_id,
             'trials': list(obj.trials)
         }
@@ -65,7 +65,7 @@ class SerializerProject(SerializerAspect):
             'uid': to_json(obj.uid),
             'name': obj.name,
             'description': obj.description,
-            'tags': obj.tags,
+            'metadata': obj.metadata,
             'trials': [to_json(t, short) for t in obj.trials],
             'groups': [to_json(g, short) for g in obj.groups]
         }
@@ -86,6 +86,7 @@ class SerializerStatus(SerializerAspect):
 
 class SerializerDatetime(SerializerAspect):
     def to_json(self, obj: datetime.datetime, short=False):
+
         return (obj - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
@@ -132,7 +133,7 @@ def from_json(obj: Dict[str, any]) -> any:
             _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
-            tags=obj['tags'],
+            metadata=obj['metadata'],
             groups=set([from_json(g) for g in obj['groups']]),
             trials=set([from_json(t) for t in obj['trials']]),
         )
@@ -142,7 +143,7 @@ def from_json(obj: Dict[str, any]) -> any:
             _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
-            tags=obj['tags'],
+            metadata=obj['metadata'],
             trials=set(obj['trials']),
             project_id=obj['project_id']
         )

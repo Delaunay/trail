@@ -1,5 +1,5 @@
 import orion.core.cli
-from tests.config import is_travis
+from tests.config import is_travis, remove
 from multiprocessing import Process
 import pytest
 import subprocess
@@ -9,21 +9,14 @@ import time
 
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
-def test_orion_poc(backend='file://orion_results.json'):
+def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss'):
+    remove('orion_results.json')
 
-    #
-    # os.makedirs('/tmp/mongodb', exist_ok=True)
-    #
-    # server = Process(target=mongodb)
-    # server.start()
-    #
-    # time.sleep(3)
+    os.environ['ORION_STORAGE'] = backend
+    _, uri = os.environ.get('ORION_STORAGE', 'track:file://orion_results.json').split(':', maxsplit=1)
 
-    # out = subprocess.check_output(
-    #     'mongo orion_test --eval \'db.createUser({user:"user",pwd:"pass",roles:["readWrite"]});\'',
-    #     shell=True
-    # )
-    # print(out.decode('utf8'))
+    cwd = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
 
     multiple_of_8 = [8 * i for i in range(32 // 8, 512 // 8)]
 
@@ -31,11 +24,11 @@ def test_orion_poc(backend='file://orion_results.json'):
         '-vv', '--debug', 'hunt',
         '--config', 'orion.yaml', '-n', 'default_algo', #'--metric', 'error_rate',
         '--max-trials', '10',
-        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', backend
+        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', uri
     ])
 
-    # '--batch-size~loguniform(32, 512, discrete=True)'
-    # p.kill()
+    os.chdir(cwd)
+    remove('orion_results.json')
 
 
 def mongodb():
@@ -52,8 +45,4 @@ def mongodb():
 
 
 if __name__ == '__main__':
-    os.environ['ORION_STORAGE'] = 'track:file://orion_results.json?objective=epoch_loss'
-
-    _, uri = os.environ.get('ORION_STORAGE', 'track:file://orion_results.json').split(':', maxsplit=1)
-
-    test_orion_poc(backend=uri)
+    test_orion_poc()

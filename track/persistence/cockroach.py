@@ -3,7 +3,7 @@ from track.persistence.utils import parse_uri
 from track.aggregators.aggregator import Aggregator, StatAggregator
 from track.structure import Trial, TrialGroup, Project
 from track.serialization import to_json, from_json
-from track.utils.log import info
+from track.utils.log import info, debug
 
 import json
 import time
@@ -15,7 +15,7 @@ from typing import Callable
 class Cockroach(Protocol):
     def __init__(self, uri):
         uri = parse_uri(uri)
-
+        debug('connecting to server')
         self.con = psycopg2.connect(
             database='track',
             user=uri.get('username', 'track_client'),
@@ -28,6 +28,8 @@ class Cockroach(Protocol):
             host=uri['address']
         )
         self.con.set_session(autocommit=True)
+
+        debug('get connection cursor')
         self.cursor = self.con.cursor()
         self.chrono = {}
 
@@ -157,7 +159,7 @@ class Cockroach(Protocol):
     def get_project(self, project: Project):
         self.cursor.execute("""
             SELECT
-                uid, name, description, tags, trial_groups, trials
+                uid, name, description, metadata, trial_groups, trials
             FROM
                 track.projects
             WHERE
@@ -172,23 +174,23 @@ class Cockroach(Protocol):
             _uid=self.decode_uid(r[0]),
             name=r[1],
             description=r[2],
-            tags=self.deserialize(r[3]),
-            groups=self.process_uuid_array(r[4]),
-            trials=self.process_uuid_array(r[5])
+            metadata=self.deserialize(r[3]),
+            groups=set(self.process_uuid_array(r[4])),
+            trials=set(self.process_uuid_array(r[5]))
         )
 
     def new_project(self, project: Project):
         try:
             self.cursor.execute("""
                 INSERT INTO
-                    track.projects (uid, name, description, tags)
+                    track.projects (uid, name, description, metadata)
                 VALUES
                     (%s, %s, %s, %s);
                 """, (
                 project.uid,
                 project.name,
                 project.description,
-                self.serialize(project.tags),
+                self.serialize(project.metadata),
             ))
             return project
         except psycopg2.errors.UniqueViolation:
@@ -197,7 +199,7 @@ class Cockroach(Protocol):
     def get_trial_group(self, group: TrialGroup):
         self.cursor.execute("""
             SELECT
-                uid, name, description, tags, trials, project_id
+                uid, name, description, metadata, trials, project_id
             FROM
                 track.trial_groups
             WHERE
@@ -212,22 +214,22 @@ class Cockroach(Protocol):
             _uid=self.decode_uid(r[0]),
             name=r[1],
             description=r[2],
-            tags=self.deserialize(r[3]),
-            trials=self.process_uuid_array(r[4]),
+            metadata=self.deserialize(r[3]),
+            trials=set(self.process_uuid_array(r[4])),
             project_id=self.decode_uid(r[5]))
 
     def new_trial_group(self, group: TrialGroup):
         try:
             self.cursor.execute("""
                 INSERT INTO
-                    track.trial_groups (uid, name, description, tags, project_id)
+                    track.trial_groups (uid, name, description, metadata, project_id)
                 VALUES
                     (%s, %s, %s, %s, %s);
                 """, (
                 group.uid.encode('utf8'),
                 group.name,
                 group.description,
-                self.serialize(group.tags),
+                self.serialize(group.metadata),
                 group.project_id.encode('utf8')
             ))
             return group

@@ -55,6 +55,7 @@ class TrackClient:
 
         orion_trial = os.environ.get('ORION_TRIAL_ID')
         if orion_trial is not None:
+            print(orion_trial)
             self.set_trial(uid=orion_trial)
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
@@ -72,13 +73,13 @@ class TrackClient:
         self.version = version_compute
         return self
 
-    def set_project(self, project=None, name=None, tags=None, description=None, force=False):
+    def set_project(self, project=None, name=None, metadata=None, description=None, force=False):
         if self.project is not None and not force:
             warning('Project is already set, to override use force=True')
             return self.project
 
         if project is None:
-            project = Project(name=name, tags=tags, description=description)
+            project = Project(name=name, metadata=metadata, description=description)
 
         assert project.name is not None, 'Project name cannot be none'
 
@@ -93,13 +94,13 @@ class TrackClient:
         debug(f'set project to (project: {self.project.name})')
         return self.project
 
-    def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None, force=False):
+    def set_group(self, group: TrialGroup = None, name=None, metadata=None, description=None, force=False):
         if self.group is not None and not force:
             warning('Group is already set, to override use force=True')
             return self.group
 
         if group is None:
-            group = TrialGroup(name=name, tags=tags, description=description, project_id=self.project.uid)
+            group = TrialGroup(name=name, metadata=metadata, description=description, project_id=self.project.uid)
 
         if group.project_id is None:
             group.project_id = self.project.uid
@@ -151,8 +152,8 @@ class TrackClient:
             raise RuntimeError(f'cannot set trial (id: {uid}, hash:{hash}) it does not exist')
 
     def new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
-        if self.trial is not None and not force:
-            warning('Trial is already set, to override use force=True')
+        if self.trial is not None and not is_delayed_call(self.trial) and not force:
+            warning(f'Trial is already set, to override use force=True')
             return self.logger
 
         # if arguments are not specified do not create the trial just yet

@@ -63,6 +63,9 @@ def lock_guard(readonly, atomic=False):
         def _lock_guard(self, *args, **kwargs):
             global _lock_guard_depth
 
+            if _lock_guard_depth == 0:
+                debug('filelock start')
+
             with self.lock:
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
@@ -76,6 +79,10 @@ def lock_guard(readonly, atomic=False):
                     self.commit()
 
                 _lock_guard_depth -= 1
+
+            if _lock_guard_depth == 0:
+                debug('filelock end')
+
             return val
 
         return _lock_guard
@@ -147,12 +154,14 @@ class FileProtocol(Protocol):
 
     def _inc_trial(self, trial):
         trial.metadata['_update_count'] = trial.metadata.get('_update_count', 0) + 1
+        trial.metadata['_last_change'] = time.time()
 
     @lock_write
     def log_trial_start(self, trial):
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
+
         self._inc_trial(trial)
         return trial
 
@@ -216,11 +225,10 @@ class FileProtocol(Protocol):
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
-        previous_version = self.storage.get_previous_version_tag(trial)
-        current_version = self.storage.get_current_version_tag(trial)
-
-        if previous_version != current_version:
-            raise RuntimeError(f'The trial was modified! {previous_version} != {current_version}')
+        #previous_version = self.storage.get_previous_version_tag(trial)
+        #current_version = self.storage.get_current_version_tag(trial)
+        #if previous_version != current_version:
+        #    raise RuntimeError(f'The trial was modified! {previous_version} != {current_version}')
 
         trial.status = status
         if error is not None:
@@ -310,6 +318,7 @@ class FileProtocol(Protocol):
             if group is not None or self.strict:
                 group.trials.add(trial.uid)
 
+        trial.metadata['_update_count'] = 0
         return trial
 
     @lock_write

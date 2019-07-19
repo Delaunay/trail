@@ -29,7 +29,8 @@ class LogSignalHandler(SignalHandler):
         self.logger.set_status(Status.Interrupted, error=frame)
 
     def atexit(self):
-        self.logger.set_status(Status.Completed)
+        if not self.logger.has_finished:
+            self.logger.set_status(Status.Completed)
 
 
 def _make_container(step, aggregator):
@@ -80,6 +81,7 @@ class TrialLogger:
 
         self.parent_chrono = LoggerChronoContext(self.protocol, self.trial, acc=acc)
         self.signal_handler = LogSignalHandler(self)
+        self.has_finished = False
 
     def log_arguments(self, **kwargs):
         self.protocol.log_trial_arguments(self.trial, **kwargs)
@@ -108,6 +110,8 @@ class TrialLogger:
 
     # Context API for starting the top level chrono
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
+        self.has_finished = True
+
         if exc_type is not None:
             self.protocol.set_trial_status(self.trial, Status.Exception, error=exc_type)
         else:

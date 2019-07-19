@@ -131,7 +131,7 @@ class CockRoachDB:
             uid             BYTES PRIMARY KEY,
             name            STRING,
             description     STRING,
-            tags            JSONB,
+            metadata        JSONB,
             trial_groups    BYTES[],
             trials          BYTES[]
         );
@@ -139,7 +139,7 @@ class CockRoachDB:
             uid         BYTES PRIMARY KEY,
             name        STRING,
             description STRING,
-            tags        JSONB,
+            metadata    JSONB,
             trials      BYTES[],
             project_id  BYTES
         );

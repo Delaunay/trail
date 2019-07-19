@@ -1,10 +1,12 @@
 from tests.e2e.end_to_end import end_to_end_train
 import time
 import pytest
-from tests.config import is_travis
+from tests.config import is_travis, remove
 
 
 def e2e_socketed(client=1, security_layer=None):
+    remove('socketed.json')
+
     from track.persistence.socketed import start_track_server
     from multiprocessing import Process
 
@@ -39,6 +41,7 @@ def e2e_socketed(client=1, security_layer=None):
 
     finally:
         db.terminate()
+    remove('socketed.json')
 
 
 def test_e2e_socketed():

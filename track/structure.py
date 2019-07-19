@@ -102,6 +102,9 @@ class Trial:
     def __hash__(self):
         return hash(self.uid)
 
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
+
 
 @dataclass
 class TrialGroup:
@@ -122,13 +125,16 @@ class TrialGroup:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: Dict[str, any] = field(default_factory=dict)
+    metadata: Dict[str, any] = field(default_factory=dict)
     trials: Set[Trial] = field(default_factory=set)
 
     project_id: Optional[int] = None
 
     def __hash__(self):
         return hash(self.uid)
+
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
 
 
 @dataclass
@@ -150,12 +156,15 @@ class Project:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: Dict[str, any] = field(default_factory=dict)
+    metadata: Dict[str, any] = field(default_factory=dict)
     groups: Set[TrialGroup] = field(default_factory=set)
     trials: Set[Trial] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self.uid)
+
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
 
 
 _current_project = None
