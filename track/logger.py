@@ -29,7 +29,7 @@ class LogSignalHandler(SignalHandler):
         self.logger.set_status(Status.Interrupted, error=frame)
 
     def atexit(self):
-        if not self.logger.has_finished:
+        if self.logger.has_started and not self.logger.has_finished:
             self.logger.set_status(Status.Completed)
 
 
@@ -82,11 +82,18 @@ class TrialLogger:
         self.parent_chrono = LoggerChronoContext(self.protocol, self.trial, acc=acc)
         self.signal_handler = LogSignalHandler(self)
         self.has_finished = False
+        self.has_started = False
 
     def log_arguments(self, **kwargs):
         self.protocol.log_trial_arguments(self.trial, **kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        # this in case the user is not using the context API.
+        # this means our runtime info might be a bit optimistic
+        # but for long training period it should not matter too much
+        if not self.has_started:
+            self.start()
+
         self.protocol.log_trial_metrics(self.trial, step, aggregator, **kwargs)
 
     def log_metadata(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
@@ -114,14 +121,17 @@ class TrialLogger:
 
         if exc_type is not None:
             self.protocol.set_trial_status(self.trial, Status.Exception, error=exc_type)
-        else:
+        # in some cases we build the trial ahead of time so finish my be called
+        # while the trial has not started yet.
+        elif self.has_started:
             self.protocol.set_trial_status(self.trial, Status.Completed)
 
-        self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
-        if exc_type is not None:
-            raise exc_type
+            self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
+            if exc_type is not None:
+                raise exc_type
 
     def start(self):
+        self.has_started = True
         self.set_status(Status.Running)
         self.parent_chrono.__enter__()
 

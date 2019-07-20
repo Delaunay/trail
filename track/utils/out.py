@@ -13,3 +13,12 @@ class RingOutputDecorator:
 
     def out(self):
         return ''.join(self.entries.to_list())
+
+    def flush(self):
+        pass
+
+    def output(self):
+        return ''.join(self.entries.to_list())
+
+    def raw(self):
+        return self.entries.to_list()

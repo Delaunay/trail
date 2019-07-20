@@ -20,6 +20,10 @@ from track.utils.delay import delay_call, is_delayed_call
 from track.utils.log import warning, debug, info
 
 
+class TrialDoesNotExist(Exception):
+    pass
+
+
 # pylint: disable=too-many-public-methods
 class TrackClient:
     """ TrackClient. A client tracks a single Trial being ran"""
@@ -144,12 +148,17 @@ class TrackClient:
             return self.logger
 
         if uid is not None:
-            hash, revision = uid.split('_')
+            hash, revision = uid.rsplit('_', maxsplit=1)
         else:
             assert hash is not None and revision is not None
 
         try:
-            self.trial = self.protocol.get_trial(Trial(_hash=hash, revision=revision))[0]
+            trials = self.protocol.get_trial(Trial(_hash=hash, revision=revision))
+
+            if trials is None:
+                raise TrialDoesNotExist(f'Trial (hash: {hash}, rev: {revision}) does not exist!')
+
+            self.trial = trials[0]
             self.logger = TrialLogger(self.trial, self.protocol)
             return self.logger
 
@@ -188,17 +197,20 @@ class TrackClient:
         # We do not need to create the trial to add tags.
         # just append the tags to the trial call when it is going to be created
         if is_delayed_call(self.trial):
-            self.trial.add_arguments(**kwargs)
+            self.trial.add_arguments(tags=kwargs)
         else:
             self.logger.add_tags(**kwargs)
 
-    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
+    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict] = None, show=False, **kwargs) -> Namespace:
         return self.log_arguments(args, show, **kwargs)
 
-    def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
+    def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict] = None, show=False, **kwargs) -> Namespace:
         """ Store the arguments that was used to run the trial.  """
 
-        nargs = args
+        nargs = dict()
+        if args is not None:
+            nargs = args
+
         if isinstance(args, ArgumentParser):
             nargs = args.parse_args()
 
@@ -277,15 +289,15 @@ class TrackClient:
         self.eta.set_totals(t)
         return self
 
-    def capture_output(self):
+    def capture_output(self, output_size=50):
         import sys
         do_stderr = sys.stderr is not sys.stdout
 
-        self.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', 50))
+        self.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', output_size))
         sys.stdout = self.stdout
 
         if do_stderr:
-            self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
+            self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', output_size))
             sys.stderr = self.stderr
         return self
 

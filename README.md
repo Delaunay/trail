@@ -34,12 +34,19 @@ log.set_group(
 log.new_trial()
 # ---
 
-# Saved arguments
+# Save arguments
 args = log.log_arguments(args, show=True)
 
+
+# start training
+with log:
     ...
 
     log.log_metrics(step=epoch, epoch_loss=loss)
+    
+    # compute elapsed time 
+    with trial.chrono('time_this'):
+        sleep(1)
 
     ...
 

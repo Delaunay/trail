@@ -44,6 +44,12 @@ class RingAggregator(Aggregator):
     def to_json(self, short=False):
         return self.ring.to_list()
 
+    def __repr__(self):
+        return f'r<{repr(self.ring.to_list())}>'
+
+    def __str__(self):
+        return f'r<{str(self.ring.to_list())}>'
+
 
 class StatAggregator(Aggregator):
     """ Compute mean, sd, min, max; does not keep the entire history.
@@ -92,6 +98,12 @@ class StatAggregator(Aggregator):
     def total(self):
         return self.stat.total
 
+    def __repr__(self):
+        return f's<{repr(self.stat.to_dict())}>'
+
+    def __str__(self):
+        return f's<{str(self.stat.to_dict())}>'
+
 
 class TimeSeriesAggregator(Aggregator):
     """ Keeps the entire history of the metric """
@@ -115,6 +127,12 @@ class TimeSeriesAggregator(Aggregator):
             return self.time_series[-20:]
         return self.time_series
 
+    def __repr__(self):
+        return f'ts<{repr(self.time_series)}>'
+
+    def __str__(self):
+        return f'ts<{str(self.time_series)}>'
+
 
 class ValueAggregator(Aggregator):
     """ Does not Aggregate only keeps the latest value """
@@ -135,3 +153,9 @@ class ValueAggregator(Aggregator):
 
     def to_json(self, short=False):
         return self.value
+
+    def __repr__(self):
+        return f'v<{repr(self.value)}>'
+
+    def __str__(self):
+        return f'v<{str(self.value)}>'
