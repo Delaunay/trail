@@ -48,12 +48,16 @@ def test_e2e_socketed():
     e2e_socketed(1)
 
 
+def test_e2e_socketed_aes():
+    e2e_socketed(1, security_layer='AES')
+
+
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_e2e_socketed_clients():
     e2e_socketed(2)
 
 
 if __name__ == '__main__':
+    import sys
+    sys.stdout = sys.stderr
     e2e_socketed(1, security_layer='AES')
-
-    # test_e2e_socketed()

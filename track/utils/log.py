@@ -2,6 +2,10 @@ import logging
 import sys
 
 
+def set_log_level(level=logging.INFO):
+    trail_logger.setLevel(level)
+
+
 def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
     start = path.rfind('track')
     path = path[start:]
@@ -18,7 +22,7 @@ def make_logger(name):
     ch.stream = sys.stdout
 
     formatter = logging.Formatter(
-        '[%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
+        '%(relativeCreated)8d [%(levelname)8s] %(name)s [%(process)d] %(pathname)s:%(lineno)d %(message)s')
     ch.setFormatter(formatter)
 
     if not logger.handlers:
@@ -29,10 +33,7 @@ def make_logger(name):
 
 if globals().get('trail_logger') is None:
     trail_logger = make_logger('TRACK')
-
-
-def set_log_level(level=logging.INFO):
-    trail_logger.setLevel(level)
+    set_log_level(logging.DEBUG)
 
 
 warning = trail_logger.warning
@@ -41,4 +42,5 @@ debug = trail_logger.debug
 error = trail_logger.error
 critical = trail_logger.critical
 exception = trail_logger.exception
+
 

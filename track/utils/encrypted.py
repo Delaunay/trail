@@ -33,10 +33,7 @@ class EncryptedSocket(socket.socket):
         self.settimeout(sock.gettimeout())
         sock.detach()
 
-        self.encrypt = None
-        self.decrypt = None
-        self.padder = padding.PKCS7(128).padder()
-        self.unpadder = padding.PKCS7(128).unpadder()
+        self.cipher = None
         self.message_size = None
         self.message_received = None
         self.server_side = server_side
@@ -79,10 +76,11 @@ class EncryptedSocket(socket.socket):
             backend=default_backend()
         ).derive(shared_key)
 
-        cipher = Cipher(algorithms.AES(key[0:32]), modes.CBC(key[32:]), backend=default_backend())
-
-        self.encrypt = cipher.encryptor()
-        self.decrypt = cipher.decryptor()
+        self.cipher = Cipher(
+            algorithms.AES(key[0:32]),
+            modes.CBC(key[32:]),
+            backend=default_backend()
+        )
 
         return self
 
@@ -118,55 +116,69 @@ class EncryptedSocket(socket.socket):
         ).derive(shared_key)
 
         encrypted_socket = wrap_socket(clt, False, handshaked=True)
-        cipher = Cipher(algorithms.AES(shared_key[0:32]), modes.CBC(shared_key[32:]), backend=default_backend())
-
-        encrypted_socket.encrypt = cipher.encryptor()
-        encrypted_socket.decrypt = cipher.decryptor()
+        encrypted_socket.cipher = Cipher(
+            algorithms.AES(shared_key[0:32]),
+            modes.CBC(shared_key[32:]),
+            backend=default_backend()
+        )
 
         return encrypted_socket, addr
+
+    def send(self, data: bytes, flags: int = 0) -> int:
+        self.sendall(data, flags)
+        return len(data)
 
     def sendall(self, data, flags: int = 0):
         if isinstance(data, bytearray):
             data = bytes(data)
 
-        padded_bytes = self.padder.update(data)
-        padded_bytes += self.padder.finalize()
+        encrypt = self.cipher.encryptor()
+        padder = padding.PKCS7(128).padder()
 
-        encrypted = self.encrypt.update(padded_bytes)
-        encrypted += self.encrypt.finalize()
+        padded_bytes = padder.update(data)
+        padded_bytes += padder.finalize()
 
-        print('SEND', data)
-        print('SEND', encrypted, len(encrypted))
+        encrypted = encrypt.update(padded_bytes)
+        encrypted += encrypt.finalize()
 
         super().sendall(encrypted, flags)
+        return len(data)
 
-    def recv(self, buffersize, flags: int = 0):
-        # import inspect
-        #
-        # stack = inspect.stack()
-        # for s in stack:
-        #     print('    ', s.function, s.filename)
+    def readsize(self):
+        decrypt = self.cipher.decryptor()
+        unpadder = padding.PKCS7(128).unpadder()
+
+        size = super().recv(4)
+        return size, (decrypt, unpadder)
+
+    def recv(self, buffersize, flags: int = 0, context=None):
         data = super().recv(buffersize, flags)
 
-        print('RECV: CLEAR', data, len(data), self.server_side)
-        decrypted = self.decrypt.update(data)
+        # no data nothing to decrypt
+        if not data:
+            return data
+
+        # ----
+        if context is None:
+            decrypt = self.cipher.decryptor()
+            unpadder = padding.PKCS7(128).unpadder()
+        else:
+            decrypt, unpadder = context
+        # ----
+
+        decrypted = decrypt.update(data)
 
         while True:
             try:
-                decrypted += self.decrypt.finalize()
-                print('END', decrypted)
+                decrypted += decrypt.finalize()
                 break
 
             except ValueError as e:
-                print(e)
-
                 data = super().recv(buffersize, flags)
-                decrypted += self.decrypt.update(data)
+                decrypted += decrypt.update(data)
 
-                print('NEXT: ', decrypted)
-
-        unpadded = self.unpadder.update(decrypted)
-        unpadded += self.unpadder.finalize()
+        unpadded = unpadder.update(decrypted)
+        unpadded += unpadder.finalize()
 
         return unpadded
 

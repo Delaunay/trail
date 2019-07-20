@@ -42,13 +42,9 @@ def recv(socket, timeout=None):
     data = socket.recv(4096)
     size = struct.unpack('I', data[0:4])[0]
 
-    # info(socket.server_side)
-    # info(size)
-    # info(data)
-
     elapsed = 0
     while len(data) < size:
-        data += socket.recv(4096)
+        data += socket.recv(size)
 
         if len(data) == 0:
             time.sleep(0.01)
@@ -57,7 +53,7 @@ def recv(socket, timeout=None):
         if timeout and elapsed > timeout:
             raise TimeoutError('Was not able to receive the entire message in time')
 
-    return to_obj(data[4:])
+    return to_obj(data[4:size])
 
 
 class RPCCallFailure(Exception):
@@ -92,10 +88,10 @@ class SocketClient(Protocol):
         kwargs['__rpc__'] = 'authenticate'
         kwargs['username'] = self.username
         kwargs['password'] = self.password
+
         send(self.socket, kwargs)
         self.token = _check(recv(self.socket))
-        info('token')
-        info(self.token)
+        info(f'token: {self.token}')
 
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
@@ -159,6 +155,7 @@ class SocketClient(Protocol):
         kwargs['__rpc__'] = 'set_trial_status'
         kwargs['trial'] = trial.uid
         kwargs['status'] = to_json(status)
+
         send(self.socket, kwargs)
         return _check(recv(self.socket))
 
@@ -173,15 +170,21 @@ class SocketClient(Protocol):
         kwargs = dict()
         kwargs['__rpc__'] = 'get_project'
         kwargs['project'] = to_json(project)
+
+        info(kwargs)
         send(self.socket, kwargs)
-        return _check(recv(self.socket))
+        p = _check(recv(self.socket))
+
+        info(f'got reply {p}')
+        return p
 
     def new_project(self, project: Project):
         kwargs = dict()
         kwargs['__rpc__'] = 'new_project'
         kwargs['project'] = to_json(project)
         send(self.socket, kwargs)
-        return _check(recv(self.socket))
+        p = _check(recv(self.socket))
+        return p
 
     def get_trial_group(self, group: TrialGroup):
         kwargs = dict()
@@ -339,6 +342,7 @@ class SocketServer(Protocol):
                 'status': 0,
                 'return': to_json(answer)
             })
+            # info(f'returned: {answer}')
 
         except Exception as e:
             error(f'An exception occurred while processing (rpc: {proc_name}) '
@@ -366,6 +370,7 @@ class SocketServer(Protocol):
 
     async def handle_client(self, reader, writer):
         info('Client Connected')
+
         running = True
         count = 0
         sleep_time = 0
@@ -423,6 +428,7 @@ class SocketServer(Protocol):
                 continue
 
             self.exec(reader, writer, proc_name, attr, request, cache=cache)
+
             sleep_time = 0
 
         self.authentication.pop(reader, None)
@@ -494,9 +500,11 @@ def start_track_server(protocol, hostname, port, security_layer=None):
     try:
         info('Running Server')
         server.run_server()
+
     except KeyboardInterrupt as e:
         server.close()
         raise e
+
     except Exception as e:
         server.close()
         raise e

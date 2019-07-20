@@ -63,8 +63,8 @@ def lock_guard(readonly, atomic=False):
         def _lock_guard(self, *args, **kwargs):
             global _lock_guard_depth
 
-            if _lock_guard_depth == 0:
-                debug('filelock start')
+            # if _lock_guard_depth == 0:
+            #     debug('filelock start')
 
             with self.lock:
                 # avoid reloading the file if the database is already locked
@@ -80,8 +80,8 @@ def lock_guard(readonly, atomic=False):
 
                 _lock_guard_depth -= 1
 
-            if _lock_guard_depth == 0:
-                debug('filelock end')
+            # if _lock_guard_depth == 0:
+            #     debug('filelock end')
 
             return val
 
