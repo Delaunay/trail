@@ -17,7 +17,7 @@ from track.utils.eta import EstimatedTime
 from track.configuration import options
 from track.utils.out import RingOutputDecorator
 from track.utils.delay import delay_call, is_delayed_call
-from track.utils.log import warning, debug
+from track.utils.log import warning, debug, info
 
 
 # pylint: disable=too-many-public-methods
@@ -55,7 +55,6 @@ class TrackClient:
 
         orion_trial = os.environ.get('ORION_TRIAL_ID')
         if orion_trial is not None:
-            print(orion_trial)
             self.set_trial(uid=orion_trial)
 
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
@@ -75,8 +74,11 @@ class TrackClient:
 
     def set_project(self, project=None, name=None, metadata=None, description=None, force=False):
         if self.project is not None and not force:
-            warning('Project is already set, to override use force=True')
+            info('Project is already set, to override use force=True')
             return self.project
+
+        if metadata is None:
+            metadata = {}
 
         if project is None:
             project = Project(name=name, metadata=metadata, description=description)
@@ -96,8 +98,11 @@ class TrackClient:
 
     def set_group(self, group: TrialGroup = None, name=None, metadata=None, description=None, force=False):
         if self.group is not None and not force:
-            warning('Group is already set, to override use force=True')
+            info('Group is already set, to override use force=True')
             return self.group
+
+        if metadata is None:
+            metadata = {}
 
         if group is None:
             group = TrialGroup(name=name, metadata=metadata, description=description, project_id=self.project.uid)
@@ -135,7 +140,7 @@ class TrackClient:
 
     def set_trial(self, uid=None, hash=None, revision=None, force=False):
         if self.trial is not None and not force:
-            warning('Trial is already set, to override use force=True')
+            info('Trial is already set, to override use force=True')
             return self.logger
 
         if uid is not None:
@@ -153,7 +158,7 @@ class TrackClient:
 
     def new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
         if self.trial is not None and not is_delayed_call(self.trial) and not force:
-            warning(f'Trial is already set, to override use force=True')
+            info(f'Trial is already set, to override use force=True')
             return self.logger
 
         # if arguments are not specified do not create the trial just yet

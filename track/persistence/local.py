@@ -375,6 +375,7 @@ class FileProtocol(Protocol):
 
 def _get_attribute(obj, attrs):
     attribute = getattr(obj, attrs[0])
+
     for key in attrs[1:]:
         attribute = attribute.get(key)
         if attribute is None:

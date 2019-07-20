@@ -60,7 +60,7 @@ class SerializerTrialGroup(SerializerAspect):
 
 class SerializerProject(SerializerAspect):
     def to_json(self, obj: Project, short=False):
-        return {
+        p = {
             'dtype': 'project',
             'uid': to_json(obj.uid),
             'name': obj.name,
@@ -69,6 +69,7 @@ class SerializerProject(SerializerAspect):
             'trials': [to_json(t, short) for t in obj.trials],
             'groups': [to_json(g, short) for g in obj.groups]
         }
+        return p
 
 
 class SerializerChronoContext(SerializerAspect):
@@ -129,9 +130,9 @@ def from_json(obj: Dict[str, any]) -> any:
     dtype = obj.get('dtype')
 
     if dtype == 'project':
-        from track.utils.debug import print_stack
-        if obj.get('metadata') is None:
-            print_stack()
+        # from track.utils.debug import print_stack
+        # if obj.get('metadata') is None:
+        #     print_stack()
 
         return Project(
             _uid=obj['uid'],
