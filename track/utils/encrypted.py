@@ -173,7 +173,7 @@ class EncryptedSocket(socket.socket):
                 decrypted += decrypt.finalize()
                 break
 
-            except ValueError as e:
+            except ValueError:
                 data = super().recv(buffersize, flags)
                 decrypted += decrypt.update(data)
 
