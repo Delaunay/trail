@@ -11,6 +11,7 @@ from track.aggregators.aggregator import TimeSeriesAggregator
 from track.aggregators.aggregator import ValueAggregator
 from track.persistence.protocol import Protocol
 from track.chrono import ChronoContext
+from track.utils.delay import is_delayed_call
 
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
@@ -85,7 +86,9 @@ class TrialLogger:
         self.has_started = False
 
     def log_arguments(self, **kwargs):
-        self.protocol.log_trial_arguments(self.trial, **kwargs)
+        # arguments are set at trial creation
+        if is_delayed_call(self.trial):
+            self.trial = self.trial(arguments=kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         # this in case the user is not using the context API.

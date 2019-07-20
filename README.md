@@ -17,42 +17,22 @@ python setup.py install
 Overview
 --------
 
-```
-# define a project and groups for easier query
-# --------------------------------------------
-log = TrackClient(backend='file://my_paper.json')
-log.set_project(
-    name='my_paper', 
-    description='Trail test example'
-)
 
-log.set_group(
-    name='baseline',
-    description='SOTA @ 2019'
-)
+```python
+from track import TrackClient
 
-log.new_trial()
-# ---
+client = TrackClient('file://client_test.json')
+client.set_project(name='test_client')
 
-# Save arguments
-args = log.log_arguments(args, show=True)
+trial = client.new_trial()
+trial.log_arguments(batch_size=256)
 
+with trial:
+    trial.log_metrics(step=1, epoch_loss=1)
+    trial.log_metrics(accuracy=0.98)
 
-# start training
-with log:
-    ...
-
-    log.log_metrics(step=epoch, epoch_loss=loss)
-    
-    # compute elapsed time 
-    with trial.chrono('time_this'):
-        sleep(1)
-
-    ...
-
-
-log.report()
-log.save()    
+client.save()
+client.report()
 ```
 
 

@@ -29,20 +29,19 @@ def test_client_set_trial_throw(file='client_throw'):
         pass
 
 
-# def test_client_no_group():
-#     with Remove('client_test.json'):
-#         client = TrackClient('file://client_test.json')
-#         client.set_project(name='test_client')
-#
-#         trial = client.new_trial()
-#         trial.log_arguments(batch_size=256)
-#
-#         trial.log_metrics(step=1, epoch_loss=1)
-#         trial.log_metrics(accuracy=0.98)
-#
-#         client.save()
-#         client.report()
-#
+def test_client_log_api():
+    with Remove('client_test.json'):
+        client = TrackClient('file://client_test.json')
+        client.set_project(name='test_client')
+
+        trial = client.new_trial()
+        trial.log_arguments(batch_size=256)
+
+        trial.log_metrics(step=1, epoch_loss=1)
+        trial.log_metrics(accuracy=0.98)
+
+        client.save()
+        client.report()
 
 
 def test_client_capture_output(file='client_output'):

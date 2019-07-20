@@ -165,25 +165,24 @@ class TrackClient:
         except IndexError:
             raise RuntimeError(f'cannot set trial (id: {uid}, hash:{hash}) it does not exist')
 
-    def new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
+    def _new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
         if self.trial is not None and not is_delayed_call(self.trial) and not force:
             info(f'Trial is already set, to override use force=True')
-            return self.logger
+            return self.trial
 
-        # if arguments are not specified do not create the trial just yet
-        # wait for the user to be able to specify the parameters so we can have a meaningful hash
+            # if arguments are not specified do not create the trial just yet
+            # wait for the user to be able to specify the parameters so we can have a meaningful hash
         if arguments is None:
             if is_delayed_call(self.trial):
                 raise RuntimeError('Trial needs arguments')
 
-            self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
-            return self.trial.get_future()
+            self.trial = delay_call(self._new_trial, name=name, description=description, **kwargs)
+            # return the logger with the delayed trial
+            return self.trial
 
-        # replace the trial or delayed trial by its actual value
+            # replace the trial or delayed trial by its actual value
         if self.trial is None or is_delayed_call(self.trial):
             self.trial = self._make_trial(arguments, name=name)
-
-        self.logger = TrialLogger(self.trial, self.protocol)
 
         if self.project is not None:
             self.protocol.add_project_trial(self.project, self.trial)
@@ -191,6 +190,11 @@ class TrackClient:
         if self.group is not None:
             self.protocol.add_group_trial(self.group, self.trial)
 
+        return self.trial
+
+    def new_trial(self, arguments=None, name=None, description=None, force=False, **kwargs):
+        self.trial = self._new_trial(arguments, name, description, force, **kwargs)
+        self.logger = TrialLogger(self.trial, self.protocol)
         return self.logger
 
     def add_tags(self, **kwargs):
@@ -221,7 +225,8 @@ class TrackClient:
 
         # if we have a pending trial create it now as we have all the information
         if is_delayed_call(self.trial):
-            self.trial(arguments=kwargs)
+            self.trial = self.trial(arguments=kwargs)
+            self.logger = TrialLogger(self.trial, self.protocol)
         else:
             # we do not need to log the arguments they are inside the trial already
             self.logger.log_arguments(**kwargs)
@@ -239,7 +244,8 @@ class TrackClient:
 
         if is_delayed_call(self.trial):
             warning('Creating a trial without parameters!')
-            self.trial()
+            self.logger = self.trial()
+            self.trial = self.logger.trial
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):
