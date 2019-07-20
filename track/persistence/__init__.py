@@ -54,18 +54,3 @@ def get_protocol(backend_name):
             make_local('file:', strict=False, eager=False),
             log(backend_name)
         )
-
-
-if __name__ == '__main__':
-
-    a = parse_uri('protocol://username:password@host1:port1/database?options=2')
-    print(a)
-
-    a = parse_uri('socket://192.128.0.1:8123/database?options=2')
-    print(a)
-
-    a = parse_uri('cometml:workspace/project?options=2')
-    print(a)
-
-    a = parse_uri('file:test.json')
-    print(a)

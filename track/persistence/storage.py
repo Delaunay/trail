@@ -152,45 +152,6 @@ class LocalStorage:
                 self._insert_object(obj)
 
 
-def merge_objects(o1, o2):
-    if type(o1) != type(o2):
-        error('Cannot merge object with same UUID but different type')
-        return o1
-
-    if type(o1) == Trial:
-        error('Two trials with the same UUID')
-        return o1
-
-    if type(o1) == TrialGroup:
-        if o1.project_id != o2.project_id:
-            error('Cannot merge TrialGroups belonging to different projects')
-            return o1
-
-        tag_diff = set(o1.tags).symmetric_difference(set(o2.tags))
-        if len(tag_diff):
-            error('Cannot merge TrialGroups with inconsistent tags')
-            return o1
-
-        for trial in o2.trials:
-            o1.trials.append(trial)
-
-        return o1
-
-    if type(o1) == Project:
-        tag_diff = set(o1.tags).symmetric_difference(set(o2.tags))
-        if len(tag_diff):
-            error('Cannot merge Projects with inconsistent tags')
-            return o1
-
-        for g in o2.groups:
-            o1.groups.append(g)
-
-        for t in o2.trials:
-            o1.trials.append(t)
-
-        return o1
-
-
 def load_database(json_name):
     global _print_warning_once
 
@@ -219,7 +180,7 @@ def load_database(json_name):
         obj = from_json(item)
 
         if obj.uid in db:
-            obj = merge_objects(db[obj.uid], obj)
+            raise RuntimeError('Should be unreachable!')
 
         db[obj.uid] = obj
 
