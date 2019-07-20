@@ -21,7 +21,7 @@ jobs:
     - stage: unit-test
       script:
         - python -m pytest --cov=track tests/unit
-        - python -m pytest --cov=track tests/e2e
+        - python -m pytest --cov-append --cov=track tests/e2e
         - codecov
     - stage: pep8
       script:
