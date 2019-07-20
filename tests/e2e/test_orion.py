@@ -7,6 +7,13 @@ import os
 import shutil
 import time
 
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss'):

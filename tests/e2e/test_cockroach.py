@@ -1,5 +1,12 @@
 from tests.e2e.end_to_end import end_to_end_train
 
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 
 def test_e2e_cockroach():
     from track.distributed.cockroachdb import CockRoachDB

@@ -3,6 +3,13 @@ import time
 import pytest
 from tests.config import is_travis, remove
 
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 
 def e2e_socketed(client=1, security_layer=None):
     remove('socketed.json')

@@ -3,6 +3,13 @@ from multiprocessing import Process
 from tests.config import is_travis
 import pytest
 
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_e2e_cockroach_2clients(count=2):
