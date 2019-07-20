@@ -67,3 +67,12 @@ class ProtocolMultiplexer:
 
     def new_trial(self, trial: Trial):
         return [p.new_trial(trial) for p in self.protos][-1]
+
+    def fetch_trials(self, query):
+        return [p.fetch_trials(query) for p in self.protos][-1]
+
+    def fetch_groups(self, query):
+        return [p.fetch_groups(query) for p in self.protos][-1]
+
+    def fetch_projects(self, query):
+        return [p.fetch_projects(query) for p in self.protos][-1]

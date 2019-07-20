@@ -3,7 +3,7 @@ from typing import Dict
 import datetime
 
 from track.chrono import ChronoContext
-from track.structure import Project, Trial, TrialGroup, Status, status
+from track.structure import Project, Trial, TrialGroup, Status, status, CustomStatus
 
 
 class SerializerAspect:
@@ -98,7 +98,8 @@ serialization_aspects = {
     Trial: SerializerTrial(),
     ChronoContext: SerializerChronoContext(),
     Status: SerializerStatus(),
-    datetime.datetime: SerializerDatetime()
+    datetime.datetime: SerializerDatetime(),
+    CustomStatus: SerializerStatus()
 }
 
 

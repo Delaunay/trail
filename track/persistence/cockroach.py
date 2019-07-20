@@ -1,7 +1,7 @@
 from track.persistence.protocol import Protocol
 from track.persistence.utils import parse_uri
 from track.aggregators.aggregator import Aggregator, StatAggregator
-from track.structure import Trial, TrialGroup, Project
+from track.structure import Trial, TrialGroup, Project, Status, CustomStatus, _STATUS_STR
 from track.serialization import to_json, from_json
 from track.utils.log import info, debug
 
@@ -10,6 +10,15 @@ import time
 
 import psycopg2
 from typing import Callable
+
+
+def make_status(status):
+    if status is None:
+        return None
+
+    if status['name'] in _STATUS_STR:
+        return Status(status['value'])
+    return CustomStatus(name=status['name'], value=status['value'])
 
 
 class Cockroach(Protocol):
@@ -286,39 +295,44 @@ class Cockroach(Protocol):
     def get_trial(self, trial: Trial):
         self.cursor.execute("""
             SELECT
-                hash, revision, name, description, tags, version, group_id, project_id, parameters, status, errors
+                hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
             FROM
                 track.trials
             WHERE
                 hash = %s AND
                 revision = %s
-            """, (self.encode_uid(trial.uid), trial.revision))
+            """, (self.encode_uid(trial.hash), trial.revision))
 
-        r = self.cursor.fetchone()
-        if r is None:
-            return r
+        results = self.cursor.fetchall()
+        if results is None:
+            return []
 
-        return Trial(
-            _hash=self.decode_uid(r[0]),
-            revision=r[1],
-            name=r[2],
-            description=r[3],
-            tags=self.deserialize(r[4]),
-            version=r[5],
-            group_id=self.decode_uid(r[6]),
-            project_id=self.decode_uid(r[7]),
-            parameters=r[8],
-            status=r[9],
-            errors=r[10])
+        trials = []
+        for r in results:
+            t = Trial(
+                _hash=self.decode_uid(r[0]),
+                revision=r[1],
+                name=r[2],
+                description=r[3],
+                tags=self.deserialize(r[4]),
+                metadata=self.deserialize(r[5]),
+                version=r[6],
+                group_id=self.decode_uid(r[7]),
+                project_id=self.decode_uid(r[8]),
+                parameters=r[9],
+                status=make_status(r[10]),
+                errors=r[11])
+            trials.append(t)
+        return trials
 
     def new_trial(self, trial: Trial):
         try:
             self.cursor.execute("""
                 INSERT INTO
                     track.trials (uid, hash, revision, name, description,
-                    tags, version, project_id, group_id, parameters)
+                    tags, metadata, version, project_id, group_id, parameters, status)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """, (
                 trial.uid,
                 trial.hash,
@@ -326,10 +340,12 @@ class Cockroach(Protocol):
                 trial.name,
                 trial.description,
                 self.serialize(trial.tags),
+                self.serialize(trial.metadata),
                 trial.version,
                 self.encode_uid(trial.project_id),
                 self.encode_uid(trial.group_id),
-                self.serialize(trial.parameters)
+                self.serialize(trial.parameters),
+                self.serialize(trial.status)
             ))
             return trial
 
@@ -358,3 +374,114 @@ class Cockroach(Protocol):
     def deserialize(obj):
         return from_json(obj)
 
+    def fetch_groups(self, query):
+        self.cursor.execute("""
+            SELECT
+                uid, name, description, metadata, trials, project_id
+            FROM
+                track.trial_groups
+            WHERE
+                name = %s AND
+                metadata->>'user' = %s
+            """, (
+            query['name'], query['metadata.user']
+        ))
+
+        r = self.cursor.fetchone()
+        if r is None:
+            return None
+
+        group = TrialGroup(
+            _uid=r[0],
+            name=r[1],
+            description=r[2],
+            metadata=self.deserialize(r[3]),
+            trials=set(self.process_uuid_array(r[4])),
+            project_id=r[5]
+        )
+        return group
+
+    def fetch_projects(self, query):
+        print(query)
+        raise RuntimeError()
+
+    def fetch_trials(self, query):
+        print(query)
+        status = query.get('status')
+        heartbeat = query.get('metadata.heartbeat')
+
+        if heartbeat is not None:
+            self.cursor.execute("""
+                    SELECT
+                        hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                    FROM
+                        track.trials
+                    WHERE
+                        group_id = %s AND
+                        status->>'name' = %s AND
+                        CAST (metadata->>'heartbeat' AS DECIMAL) <= %s
+                """, (self.encode_uid(query['group_id']), status.name, heartbeat['$lte'])
+            )
+
+        elif isinstance(status, dict):
+            self.cursor.execute("""
+                SELECT
+                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                FROM
+                    track.trials
+                WHERE
+                    group_id = %s AND
+                    status->>'name' IN %s
+                """, (self.encode_uid(query['group_id']), tuple(status['$in']))
+            )
+            print(tuple(status['$in']))
+
+        elif status is not None:
+            self.cursor.execute("""
+                SELECT
+                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                FROM
+                    track.trials
+                WHERE
+                    group_id = %s AND
+                    status->>'name' = %s AND
+                    CAST (status->>'value' AS INTEGER) = %s
+                """, (self.encode_uid(query['group_id']), status.name, status.value)
+            )
+            print(status.name)
+
+        else:
+            self.cursor.execute("""
+                SELECT
+                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                FROM
+                    track.trials
+                WHERE
+                    group_id = %s
+                """, (self.encode_uid(query['group_id']),)
+            )
+
+        results = self.cursor.fetchall()
+        if results is None:
+            return []
+
+        trials = []
+        for r in results:
+            t = Trial(
+                _hash=self.decode_uid(r[0]),
+                revision=r[1],
+                name=r[2],
+                description=r[3],
+                tags=self.deserialize(r[4]),
+                metadata=self.deserialize(r[5]),
+                version=r[6],
+                group_id=self.decode_uid(r[7]),
+                project_id=self.decode_uid(r[8]),
+                parameters=r[9],
+                status=make_status(r[10]),
+                errors=r[11]
+            )
+            trials.append(t)
+
+        print(len(trials))
+        return trials

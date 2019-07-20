@@ -1,5 +1,6 @@
 import orion.core.cli
 from tests.config import is_travis, remove
+import sys
 from multiprocessing import Process
 import pytest
 import subprocess
@@ -16,11 +17,11 @@ else:
 
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
-def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss'):
+def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss', max_trials=2):
     remove('orion_results.json')
 
     os.environ['ORION_STORAGE'] = backend
-    _, uri = os.environ.get('ORION_STORAGE', 'track:file://orion_results.json').split(':', maxsplit=1)
+    _, uri = os.environ.get('ORION_STORAGE').split(':', maxsplit=1)
 
     cwd = os.getcwd()
     os.chdir(os.path.dirname(__file__))
@@ -29,13 +30,32 @@ def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss
 
     orion.core.cli.main([
         '-vv', '--debug', 'hunt',
-        '--config', 'orion.yaml', '-n', 'default_algo', #'--metric', 'error_rate',
-        '--max-trials', '10',
+        '--config', 'orion.yaml', '-n', 'random', #'--metric', 'error_rate',
+        '--max-trials', str(max_trials),
         './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', uri
     ])
 
     os.chdir(cwd)
     remove('orion_results.json')
+
+
+@pytest.mark.skipif(is_travis(), reason='Travis is too slow')
+def test_orion_cockroach():
+    from track.distributed.cockroachdb import CockRoachDB
+
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8123')
+    db.start(wait=True)
+
+    try:
+        test_orion_poc(
+            backend='track:cockroach://localhost:8123?objective=epoch_loss',
+            max_trials=2
+        )
+    except Exception as e:
+        raise e
+
+    finally:
+        db.stop()
 
 
 def mongodb():
@@ -52,4 +72,8 @@ def mongodb():
 
 
 if __name__ == '__main__':
-    test_orion_poc()
+    sys.stderr = sys.stdout
+
+    # test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss')
+    test_orion_cockroach()
+

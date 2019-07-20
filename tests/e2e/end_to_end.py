@@ -231,8 +231,11 @@ def end_to_end_train(backend, argv=None):
     trial.report()
     trial.save()
     print('Finished')
+    print('--------')
 
 
 if __name__ == '__main__':
     import sys
+    print('Starting')
+    print('--------')
     end_to_end_train('file:', sys.argv[1:])
