@@ -454,14 +454,14 @@ class Cockroach(Protocol):
 
         if heartbeat is not None:
             self.cursor.execute("""
-                    SELECT
-                        hash, revision, name, description, tags, metadata, metrics,ersion, group_id, project_id, parameters, status, errors
-                    FROM
-                        track.trials
-                    WHERE
-                        group_id = %s AND
-                        status->>'name' = %s AND
-                        CAST (metadata->>'heartbeat' AS DECIMAL) <= %s
+                SELECT
+                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                FROM
+                    track.trials
+                WHERE
+                    group_id = %s AND
+                    status->>'name' = %s AND
+                    CAST (metadata->>'heartbeat' AS DECIMAL) <= %s
                 """, (self.encode_uid(query['group_id']), status.name, heartbeat['$lte'])
             )
 
