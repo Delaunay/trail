@@ -452,9 +452,6 @@ class Cockroach(Protocol):
         heartbeat = query.get('metadata.heartbeat')
         uid = query.get('uid')
 
-        print('----')
-        print(query)
-
         if heartbeat is not None:
             self.cursor.execute("""
                     SELECT
