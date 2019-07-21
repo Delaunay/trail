@@ -335,9 +335,9 @@ class Cockroach(Protocol):
     def get_trial(self, trial: Trial):
         self.cursor.execute("""
             SELECT
-                hash, revision, name, description, 
-                tags, metadata, metrics, version, 
-                group_id, project_id, parameters, 
+                hash, revision, name, description,
+                tags, metadata, metrics, version,
+                group_id, project_id, parameters,
                 status, errors
             FROM
                 track.trials
@@ -500,8 +500,8 @@ class Cockroach(Protocol):
         elif uid is not None:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, 
-                    metadata, metrics, version, group_id, 
+                    hash, revision, name, description, tags,
+                    metadata, metrics, version, group_id,
                     project_id, parameters, status, errors
                 FROM
                     track.trials
