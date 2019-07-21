@@ -126,15 +126,39 @@ class Cockroach(Protocol):
         ))
 
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        self.cursor.execute("""
-            UPDATE track.trials
-            SET
-                metrics = metrics || %s
-            WHERE
-                uid = %s
+        if step is None:
+            pass
+
+        for k, v in kwargs.items():
+            exists = trial.metrics.get(k) is not None
+            if step is not None:
+                v = [[step, v]]
+            else:
+                v = [v]
+
+            self.cursor.execute(f"""
+                UPDATE track.trials
+                SET
+                    metrics = (
+                        CASE
+                            WHEN metrics->'{k}' IS NULL
+                            THEN 
+                                metrics || %s
+                            ELSE
+                                jsonb_set(
+                                    metrics::jsonb,
+                                    array['{k}'],
+                                    (metrics->'{k}')::jsonb || to_jsonb(%s)
+                                )
+                        END
+                    )
+                WHERE
+                    uid = %s
             """, (
-            self.serialize(kwargs), self.encode_uid(trial.uid)
-        ))
+                self.serialize({k: v}),
+                v,
+                self.encode_uid(trial.uid)
+            ))
 
     def set_trial_status(self, trial: Trial, status, error=None):
         self.cursor.execute("""
@@ -292,10 +316,22 @@ class Cockroach(Protocol):
     def commit(self, **kwargs):
         pass
 
+    def decode_metrics(self, metrics):
+        new_metrics = {}
+
+        for k, values in metrics.items():
+            if values:
+                if isinstance(values[0], list):
+                    new_metrics[k] = {t: v for t, v in values}
+                else:
+                    new_metrics[k] = values
+
+        return new_metrics
+
     def get_trial(self, trial: Trial):
         self.cursor.execute("""
             SELECT
-                hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
             FROM
                 track.trials
             WHERE
@@ -316,12 +352,13 @@ class Cockroach(Protocol):
                 description=r[3],
                 tags=self.deserialize(r[4]),
                 metadata=self.deserialize(r[5]),
-                version=r[6],
-                group_id=self.decode_uid(r[7]),
-                project_id=self.decode_uid(r[8]),
-                parameters=r[9],
-                status=make_status(r[10]),
-                errors=r[11])
+                metrics=self.decode_metrics(self.deserialize(r[6])),
+                version=r[7],
+                group_id=self.decode_uid(r[8]),
+                project_id=self.decode_uid(r[9]),
+                parameters=r[10],
+                status=make_status(r[11]),
+                errors=r[12])
             trials.append(t)
         return trials
 
@@ -330,9 +367,9 @@ class Cockroach(Protocol):
             self.cursor.execute("""
                 INSERT INTO
                     track.trials (uid, hash, revision, name, description,
-                    tags, metadata, version, project_id, group_id, parameters, status)
+                    tags, metadata, metrics, version, project_id, group_id, parameters, status)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
                 """, (
                 trial.uid,
                 trial.hash,
@@ -341,6 +378,7 @@ class Cockroach(Protocol):
                 trial.description,
                 self.serialize(trial.tags),
                 self.serialize(trial.metadata),
+                self.serialize(trial.metrics),
                 trial.version,
                 self.encode_uid(trial.project_id),
                 self.encode_uid(trial.group_id),
@@ -402,18 +440,16 @@ class Cockroach(Protocol):
         return group
 
     def fetch_projects(self, query):
-        print(query)
         raise RuntimeError()
 
     def fetch_trials(self, query):
-        print(query)
         status = query.get('status')
         heartbeat = query.get('metadata.heartbeat')
 
         if heartbeat is not None:
             self.cursor.execute("""
                     SELECT
-                        hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                        hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
                     FROM
                         track.trials
                     WHERE
@@ -426,7 +462,7 @@ class Cockroach(Protocol):
         elif isinstance(status, dict):
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -434,12 +470,11 @@ class Cockroach(Protocol):
                     status->>'name' IN %s
                 """, (self.encode_uid(query['group_id']), tuple(status['$in']))
             )
-            print(tuple(status['$in']))
 
         elif status is not None:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -448,12 +483,11 @@ class Cockroach(Protocol):
                     CAST (status->>'value' AS INTEGER) = %s
                 """, (self.encode_uid(query['group_id']), status.name, status.value)
             )
-            print(status.name)
 
         else:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -474,14 +508,14 @@ class Cockroach(Protocol):
                 description=r[3],
                 tags=self.deserialize(r[4]),
                 metadata=self.deserialize(r[5]),
-                version=r[6],
-                group_id=self.decode_uid(r[7]),
-                project_id=self.decode_uid(r[8]),
-                parameters=r[9],
-                status=make_status(r[10]),
-                errors=r[11]
+                metrics=self.decode_metrics(self.deserialize(r[6])),
+                version=r[7],
+                group_id=self.decode_uid(r[8]),
+                project_id=self.decode_uid(r[9]),
+                parameters=r[10],
+                status=make_status(r[11]),
+                errors=r[12]
             )
             trials.append(t)
 
-        print(len(trials))
         return trials

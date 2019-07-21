@@ -43,7 +43,8 @@ def test_cockroach_inserts():
         trial2 = proto.get_trial(Trial(_hash=trial1.hash))
 
         print(trial1)
-        assert trial1.parameters == trial2.parameters
+        assert len(trial2) == 1
+        assert trial1.parameters == trial2[0].parameters
 
         # fetch by project_id
         # trials = proto.fetch_trials({'status': Status.CreatedGroup, 'group_id': g1.uid})
@@ -66,6 +67,27 @@ def test_cockroach_inserts():
         assert len(trials) == 1
         assert trials[0].uid == trial1.uid
 
+        proto.log_trial_metrics(trial1, step=2, epoch_loss=1)
+        proto.log_trial_metrics(trial1, step=3, epoch_loss=2)
+        proto.log_trial_metrics(trial1, step=4, epoch_loss=3)
+
+        proto.log_trial_metrics(trial1, loss=3)
+        proto.log_trial_metrics(trial1, loss=2)
+        proto.log_trial_metrics(trial1, loss=1)
+
+        trials = proto.fetch_trials({'group_id': g1.uid})
+        assert len(trials) == 1
+
+        print(trials[0].metrics)
+
+        assert trials[0].metrics == {
+            'loss': [3, 2, 1],
+            'epoch_loss': {
+                2: 1,
+                3: 2,
+                4: 3
+            }
+        }
 
     except Exception as e:
         raise e
