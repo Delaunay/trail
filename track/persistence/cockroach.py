@@ -130,7 +130,6 @@ class Cockroach(Protocol):
             pass
 
         for k, v in kwargs.items():
-            exists = trial.metrics.get(k) is not None
             if step is not None:
                 v = [[step, v]]
             else:
@@ -142,7 +141,7 @@ class Cockroach(Protocol):
                     metrics = (
                         CASE
                             WHEN metrics->'{k}' IS NULL
-                            THEN 
+                            THEN
                                 metrics || %s
                             ELSE
                                 jsonb_set(
@@ -336,7 +335,10 @@ class Cockroach(Protocol):
     def get_trial(self, trial: Trial):
         self.cursor.execute("""
             SELECT
-                hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                hash, revision, name, description, 
+                tags, metadata, metrics, version, 
+                group_id, project_id, parameters, 
+                status, errors
             FROM
                 track.trials
             WHERE
@@ -455,7 +457,9 @@ class Cockroach(Protocol):
         if heartbeat is not None:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags,
+                    metadata, metrics, version, group_id,
+                    project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -468,7 +472,9 @@ class Cockroach(Protocol):
         elif isinstance(status, dict):
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags,
+                    metadata, metrics, version, group_id,
+                    project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -480,7 +486,9 @@ class Cockroach(Protocol):
         elif status is not None:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags,
+                     metadata, metrics, version, group_id,
+                     project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -492,7 +500,9 @@ class Cockroach(Protocol):
         elif uid is not None:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags, 
+                    metadata, metrics, version, group_id, 
+                    project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
@@ -505,7 +515,9 @@ class Cockroach(Protocol):
         else:
             self.cursor.execute("""
                 SELECT
-                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                    hash, revision, name, description, tags,
+                    metadata, metrics, version, group_id,
+                    project_id, parameters, status, errors
                 FROM
                     track.trials
                 WHERE
