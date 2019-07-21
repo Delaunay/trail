@@ -160,6 +160,10 @@ class Cockroach(Protocol):
                 self.encode_uid(trial.uid)
             ))
 
+    def check_result(self):
+        # print(self.cursor.statusmessage)
+        return True
+
     def set_trial_status(self, trial: Trial, status, error=None):
         self.cursor.execute("""
             UPDATE track.trials
@@ -170,6 +174,7 @@ class Cockroach(Protocol):
             """, (
             self.serialize(status), self.encode_uid(trial.uid)
         ))
+        return self.check_result()
 
     def add_trial_tags(self, trial, **kwargs):
         self.cursor.execute("""
@@ -445,6 +450,10 @@ class Cockroach(Protocol):
     def fetch_trials(self, query):
         status = query.get('status')
         heartbeat = query.get('metadata.heartbeat')
+        uid = query.get('uid')
+
+        print('----')
+        print(query)
 
         if heartbeat is not None:
             self.cursor.execute("""
@@ -483,7 +492,19 @@ class Cockroach(Protocol):
                     CAST (status->>'value' AS INTEGER) = %s
                 """, (self.encode_uid(query['group_id']), status.name, status.value)
             )
-
+        elif uid is not None:
+            self.cursor.execute("""
+                SELECT
+                    hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                FROM
+                    track.trials
+                WHERE
+                    uid = %s AND
+                    group_id = %s
+                """, (
+                self.encode_uid(uid),
+                self.encode_uid(query['group_id']),)
+            )
         else:
             self.cursor.execute("""
                 SELECT

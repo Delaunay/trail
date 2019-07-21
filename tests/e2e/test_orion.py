@@ -74,6 +74,6 @@ def mongodb():
 if __name__ == '__main__':
     sys.stderr = sys.stdout
 
-    test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss')
-    #test_orion_cockroach()
+    # test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss')
+    test_orion_cockroach()
 

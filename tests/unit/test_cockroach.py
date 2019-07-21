@@ -89,6 +89,10 @@ def test_cockroach_inserts():
             }
         }
 
+        proto.fetch_trials({
+            ''
+        })
+
     except Exception as e:
         raise e
 
