@@ -89,9 +89,15 @@ def test_cockroach_inserts():
             }
         }
 
-        proto.fetch_trials({
-            ''
+        trial3 = Trial(parameters={'a': 2}, project_id=p1.uid, group_id=g1.uid)
+        proto.new_trial(trial3)
+        trial4 = proto.get_trial(Trial(_hash=trial3.hash))
+
+        trials = proto.fetch_trials({
+            'group_id': g1.uid,
+            'uid': trial3.uid
         })
+        assert trials == [trial3]
 
     except Exception as e:
         raise e

@@ -455,7 +455,7 @@ class Cockroach(Protocol):
         if heartbeat is not None:
             self.cursor.execute("""
                     SELECT
-                        hash, revision, name, description, tags, metadata, metrics, version, group_id, project_id, parameters, status, errors
+                        hash, revision, name, description, tags, metadata, metrics,ersion, group_id, project_id, parameters, status, errors
                     FROM
                         track.trials
                     WHERE
