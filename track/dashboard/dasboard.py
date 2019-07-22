@@ -1,17 +1,8 @@
 # env FLASK_APP='track.dashboard:dashboard_app' flask run
 
-from flask import Flask, escape, request
+from flask import Flask,
 from track.persistence import get_protocol
-from track.structure import Project, Trial, TrialGroup
-import argparse
-
-# from flask import
-
-#parser = argparse.ArgumentParser()
-#parser.add_argument('--protocol', type=str, help='report file to display',
-#                    default='file:/home/setepenre/work/track/tests/unit/client_orion.json')
-
-#args = parser.parse_args()
+from track.structure import Project
 
 
 protocol = 'file:/home/setepenre/work/track/tests/unit/client_orion.json'
