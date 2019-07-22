@@ -1,6 +1,6 @@
 # env FLASK_APP='track.dashboard:dashboard_app' flask run
 
-from flask import Flask,
+from flask import Flask
 from track.persistence import get_protocol
 from track.structure import Project
 
