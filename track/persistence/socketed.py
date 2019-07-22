@@ -71,7 +71,6 @@ def _check(result):
 
 class SocketClient(Protocol):
     """ forwards all the local track requests to the track server that execute the requests and send back the results
-
     """
 
     # socket://[username:password@]host1[:port1][,...hostN[:portN]]][/[database][?options]]

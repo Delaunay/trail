@@ -1,5 +1,3 @@
-
-
 class FutureIsNotReady(Exception):
     pass
 
@@ -24,6 +22,8 @@ class Future:
 
 
 class DelayedCall:
+    """Delay a call until later"""
+
     def __init__(self, fun, kwargs):
         self.fun = fun
         self.kwargs = kwargs

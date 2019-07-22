@@ -6,7 +6,7 @@ R = TypeVar('R')  # Return Type
 
 
 class Throttler:
-    """ Limit how often the function `fun` is called by calling it only every `throttle` time it has been called """
+    """Limit how often the function `fun` is called by calling it only every `throttle` time it has been called"""
 
     def __init__(self, fun: Callable[[A], R], throttle=1):
         self.fun = fun
@@ -24,7 +24,7 @@ class Throttler:
 
 
 class TimeThrottler:
-    """ Limit how often the function `fun` is called in seconds """
+    """Limit how often the function `fun` is called in seconds"""
     def __init__(self, fun: Callable[[A], R], every=10):
         self.fun = fun
         self.last_time: float = 0
@@ -42,6 +42,7 @@ class TimeThrottler:
 
 
 class ThrottleRepeatedCalls:
+    """Limit how often the function `fun` is called in number of times called"""
     def __init__(self, fun: Callable[[A], R], every=10):
         self.fun = fun
         self.last_time: Dict[Tuple, float] = dict()
