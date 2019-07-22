@@ -48,20 +48,20 @@ def test_client_capture_output(file='client_output'):
     with Remove(file):
         client = TrackClient(f'file://{file}.json')
         client.set_project(name='project_name')
-        client.new_trial()
 
-        client.capture_output(50)
+        logger = client.new_trial()
+        logger.capture_output(50)
 
         for i in range(0, 100):
             print(f'testing_output_{i}')
 
-        out = client.stdout.raw()
+        out = logger.stdout.raw()
         for i in range(0, 25):
             assert out[i * 2] == f'testing_output_{100 - 25 + i}'
             assert out[i * 2 + 1] == '\n'
 
 
-def test_client_orion_integration(file='client_orion'):
+def test_client_orion_integration(file='client_orion_integration'):
     def scoped_init():
         clt = TrackClient(f'file://{file}.json')
 

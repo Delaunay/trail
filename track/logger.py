@@ -1,9 +1,11 @@
+import inspect
 from typing import Callable
 
+from benchutils.statstream import StatStream
+
+from track.configuration import options
 from track.containers.types import float32
 from track.structure import Trial, Status
-from track.utils.signal import SignalHandler
-
 from track.aggregators.aggregator import Aggregator
 from track.aggregators.aggregator import RingAggregator
 from track.aggregators.aggregator import StatAggregator
@@ -12,6 +14,10 @@ from track.aggregators.aggregator import ValueAggregator
 from track.persistence.protocol import Protocol
 from track.chrono import ChronoContext
 from track.utils.delay import is_delayed_call
+from track.utils.signal import SignalHandler
+from track.utils.throttle import throttled
+from track.utils.eta import EstimatedTime
+from track.utils.out import RingOutputDecorator
 
 ring_aggregator = RingAggregator.lazy(10, float32)
 stat_aggregator = StatAggregator.lazy(1)
@@ -70,8 +76,16 @@ class LoggerChronoContext:
 
 
 class TrialLogger:
-    """ Unified logger interface.
-    To log to a specific backend you should pass the desired backend to the constructor """
+    """Unified logger interface. This object should be created through the `TrackClient` interface
+
+    Parameters
+    ----------
+    trial: Trial
+        the trial that the logger modifies
+
+    protocol: Protocol
+        the storage protocol used to persist the log calls
+    """
 
     def __init__(self, trial: Trial, protocol: Protocol):
         self.protocol = protocol
@@ -79,18 +93,37 @@ class TrialLogger:
 
         acc = ValueAggregator()
         self.chronos = dict(runtime=acc)
+        self.eta = EstimatedTime(None, 1)
+        self.batch_printer = None
 
         self.parent_chrono = LoggerChronoContext(self.protocol, self.trial, acc=acc)
         self.signal_handler = LogSignalHandler(self)
         self.has_finished = False
         self.has_started = False
+        self.code = None
+        self.stdout = None
+        self.stderr = None
 
     def log_arguments(self, **kwargs):
+        """log the trial arguments. This function has not effect if the trial was already created."""
         # arguments are set at trial creation
         if is_delayed_call(self.trial):
             self.trial = self.trial(arguments=kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        """insert metrics values inside a trial
+
+        Parameters
+        ----------
+        step: any
+            a value representing a training step (could be epoch, timestamp, ...)
+
+        kwargs:
+            dictionary of metrics (metric_name: value)
+
+        aggregator: Optional[Callable[[], Aggregator]]
+            how to store the values locally
+        """
         # this in case the user is not using the context API.
         # this means our runtime info might be a bit optimistic
         # but for long training period it should not matter too much
@@ -100,6 +133,13 @@ class TrialLogger:
         self.protocol.log_trial_metrics(self.trial, step, aggregator, **kwargs)
 
     def log_metadata(self, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        """insert metadata value inside a trial
+
+        Parameters
+        ----------
+        kwargs:
+            dictionary of metrics (metadata_name: value)
+        """
         self.protocol.log_trial_metadata(self.trial, aggregator, **kwargs)
 
     def add_tags(self, **kwargs):
@@ -108,6 +148,27 @@ class TrialLogger:
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator,
                start_callback=None,
                end_callback=None):
+        """Start a chronometer to measure the time spent in that block
+
+        Parameters
+        ----------
+        name: str
+            name of the timer
+
+        aggregator:
+            how to save the values, by default it uses the `StatAggregator` and only the mean, sd, max, min values are
+            kept once the training is done
+
+        start_callback: Callable
+            function that is called once the timer starts
+
+        end_callback: Callable
+            function that is called once the timer ends
+
+        Returns
+        -------
+        returns a context manager that represents the timer
+        """
 
         return LoggerChronoContext(
             self.protocol,
@@ -154,9 +215,36 @@ class TrialLogger:
     def log_directory(self, name, recursive=False):
         pass
 
-    def set_project(self, project):
-        pass
+    def log_code(self):
+        self.code = open(inspect.stack()[-1].filename, 'r').read()
+        return self
 
-    def set_group(self, group):
-        pass
+    def capture_output(self, output_size=50):
+        import sys
+        do_stderr = sys.stderr is not sys.stdout
 
+        self.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', output_size))
+        sys.stdout = self.stdout
+
+        if do_stderr:
+            self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', output_size))
+            sys.stderr = self.stderr
+        return self
+
+    def set_eta_total(self, t):
+        self.eta.set_totals(t)
+        return self
+
+    def show_eta(self, step: int, timer: StatStream, msg: str = '',
+                 throttle=options('log.print.throttle', None),
+                 every=options('log.print.every', None),
+                 no_print=options('log.print.disable', False)):
+
+        self.eta.timer = timer
+
+        if self.batch_printer is None:
+            self.batch_printer = throttled(self.eta.show_eta, throttle, every)
+
+        if not no_print:
+            self.batch_printer(step, msg)
+        return self

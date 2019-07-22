@@ -361,15 +361,15 @@ class FileProtocol(Protocol):
         return matching_objects
 
     @lock_read
-    def fetch_trials(self, query):
+    def fetch_trials(self, query=None):
         return self._fetch_objects(self.storage.trials, query)
 
     @lock_read
-    def fetch_groups(self, query):
+    def fetch_groups(self, query=None):
         return self._fetch_objects(self.storage.groups, query)
 
     @lock_read
-    def fetch_projects(self, query):
+    def fetch_projects(self, query=None):
         return self._fetch_objects(self.storage.projects, query)
 
 
@@ -395,6 +395,9 @@ def execute_query(obj, query):
             }
         }
     """
+    if query is None:
+        return True
+
     is_selected = True
     # a query can be a dict of a list of conditions
     # allowing a list enable users to make sure the conditions are executed in a specific order

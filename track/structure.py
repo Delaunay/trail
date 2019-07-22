@@ -67,14 +67,24 @@ class Trial:
     def uid(self) -> str:
         return f'{self.hash}_{self.revision}'
 
-    def compute_hash(self) -> str:
-        return compute_hash(self.name, self.version, **self.parameters)
+    @uid.setter
+    def uid(self, value):
+        h, r = value.rsplit('_', maxsplit=1)
+        self._hash = h
+        self.revision = r
 
     @property
     def hash(self):
         if self._hash is None:
             self._hash = self.compute_hash()
         return self._hash
+
+    @hash.setter
+    def hash(self, v):
+        self._hash = v
+
+    def compute_hash(self) -> str:
+        return compute_hash(self.name, self.version, **self.parameters)
 
     _hash: str = None
     revision: int = 0                   # if uid is a duplicate rev += 1

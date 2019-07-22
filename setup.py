@@ -18,7 +18,8 @@ if __name__ == '__main__':
             'track.containers',
             'track.persistence',
             'track.utils',
-            'track.distributed'
+            'track.distributed',
+            'track.dashboard'
         ],
         install_requires=[
             'dataclasses',
