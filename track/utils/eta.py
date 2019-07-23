@@ -1,4 +1,4 @@
-from benchutils.statstream import StatStream
+from track.utils.stat import StatStream
 from typing import Union, List
 from math import log10
 
