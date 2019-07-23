@@ -73,6 +73,10 @@ docs/src/reference
 target/
 *.html
 *.json
+*.lock
 
 track/distributed/cockroach/
 trash/
+
+docs/build
+
