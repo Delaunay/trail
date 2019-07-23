@@ -17,6 +17,9 @@ class SerializerUUID(SerializerAspect):
 
 
 class SerializerTrial(SerializerAspect):
+    ignore_short = {'dtype', 'hash', 'uid', 'project_id', 'group_id'}
+    ignore_meta = {'_update_count', '_last_change', 'heartbeat'}
+
     def to_json(self, obj: Trial, short=False):
         stat = obj.status
 
@@ -25,7 +28,8 @@ class SerializerTrial(SerializerAspect):
                 'value': obj.status.value,
                 'name': obj.status.name
             }
-        return {
+
+        trial = {
             'dtype': 'trial',
             'uid': to_json(obj.uid),
             'revision': obj.revision,
@@ -43,6 +47,15 @@ class SerializerTrial(SerializerAspect):
             'errors': obj.errors,
             'status': stat
         }
+        if short:
+            for i in self.ignore_short:
+                trial.pop(i, None)
+
+            for i in self.ignore_meta:
+                trial['metadata'].pop(i, None)
+
+            trial['version'] = trial['version'][0:10]
+        return trial
 
 
 class SerializerTrialGroup(SerializerAspect):

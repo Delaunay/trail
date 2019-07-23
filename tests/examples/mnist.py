@@ -123,6 +123,8 @@ def main():
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
 
+    client.report()
+
 
 if __name__ == '__main__':
     main()

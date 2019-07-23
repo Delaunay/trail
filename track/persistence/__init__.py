@@ -24,6 +24,10 @@ def make_cockroach_protocol(uri):
     return Cockroach(uri)
 
 
+def register(name, proto):
+    _protocols[name] = proto
+
+
 _protocols = {
     '__default__': make_local,
     'file': make_local,

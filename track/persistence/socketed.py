@@ -474,19 +474,21 @@ class ServerSignalHandler(SignalHandler):
 
 
 def start_track_server(protocol, hostname, port, security_layer=None):
-    """
+    """Start a track server inside a asyncio loop
 
-    :param protocol: string that represent a backend that implements the track protocol
+    Parameters
+    ----------
+    protocol: str
+        URI that defines which backend to forward the request to
 
-            FileProtocol: file://report.json            : save using the file protocol (local json file)
-            CometML     : cometml://workspace/project   : save through cometml API
-            MLFloat     : mlflow://...
+    hostname: str
+        server host name
 
-    :param hostname      : hostname of the server
-    :param port          : port to listen for incoming client
-    :param security_layer: backend used for encryption
+    port: int
+        server port to listen to
 
-    :return:
+    security_layer: str
+        backend used for encryption (only AES is supported)
     """
 
     security = ''

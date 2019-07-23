@@ -148,7 +148,7 @@ class TrialLogger:
     def chrono(self, name: str, aggregator: Callable[[], Aggregator] = stat_aggregator,
                start_callback=None,
                end_callback=None):
-        """Start a chronometer to measure the time spent in that block
+        """Start a timer to measure the time spent in that block
 
         Parameters
         ----------
@@ -181,6 +181,7 @@ class TrialLogger:
 
     # Context API for starting the top level chrono
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
+        """finish trial, record end time and set the trial status to completed or interrupted"""
         self.has_finished = True
 
         if exc_type is not None:
@@ -196,6 +197,7 @@ class TrialLogger:
             raise exc_type
 
     def start(self):
+        """Start trial, records start time and set the trial status to running"""
         self.has_started = True
         self.set_status(Status.Running)
         self.parent_chrono.__enter__()
@@ -208,6 +210,7 @@ class TrialLogger:
         self.finish(exc_type, exc_val, exc_tb)
 
     def set_status(self, status, error=None):
+        """update trial status"""
         self.protocol.set_trial_status(self.trial, status, error)
 
     def log_file(self, file_name):
@@ -221,6 +224,7 @@ class TrialLogger:
         return self
 
     def capture_output(self, output_size=50):
+        """capture standard output"""
         import sys
         do_stderr = sys.stderr is not sys.stdout
 

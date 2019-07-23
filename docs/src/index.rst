@@ -2,6 +2,14 @@
 
 
 .. toctree::
+   :caption: User's Guide
+   :maxdepth: 1
+
+   user/overview
+   user/backends
+
+
+.. toctree::
    :caption: Examples
    :maxdepth: 1
 
