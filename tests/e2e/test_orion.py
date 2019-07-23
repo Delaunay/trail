@@ -1,5 +1,6 @@
 import orion.core.cli
-from tests.config import is_travis
+from tests.config import is_travis, remove
+import sys
 from multiprocessing import Process
 import pytest
 import subprocess
@@ -7,35 +8,54 @@ import os
 import shutil
 import time
 
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
+
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
-def test_orion_poc(backend='file://orion_results.json'):
+def test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss', max_trials=2):
+    remove('orion_results.json')
 
-    #
-    # os.makedirs('/tmp/mongodb', exist_ok=True)
-    #
-    # server = Process(target=mongodb)
-    # server.start()
-    #
-    # time.sleep(3)
+    os.environ['ORION_STORAGE'] = backend
+    _, uri = os.environ.get('ORION_STORAGE').split(':', maxsplit=1)
 
-    # out = subprocess.check_output(
-    #     'mongo orion_test --eval \'db.createUser({user:"user",pwd:"pass",roles:["readWrite"]});\'',
-    #     shell=True
-    # )
-    # print(out.decode('utf8'))
+    cwd = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
 
     multiple_of_8 = [8 * i for i in range(32 // 8, 512 // 8)]
 
     orion.core.cli.main([
         '-vv', '--debug', 'hunt',
-        '--config', 'orion.yaml', '-n', 'default_algo', #'--metric', 'error_rate',
-        '--max-trials', '10',
-        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', backend
+        '--config', 'orion.yaml', '-n', 'random', #'--metric', 'error_rate',
+        '--max-trials', str(max_trials),
+        './end_to_end.py', f'--batch-size~choices({multiple_of_8})', '--backend', uri
     ])
 
-    #  '--batch-size~loguniform(32, 512, discrete=True)'
-    # p.kill()
+    os.chdir(cwd)
+    remove('orion_results.json')
+
+
+@pytest.mark.skipif(is_travis(), reason='Travis is too slow')
+def test_orion_cockroach():
+    from track.distributed.cockroachdb import CockRoachDB
+
+    db = CockRoachDB(location='/tmp/cockroach', addrs='localhost:8123')
+    db.start(wait=True)
+
+    try:
+        test_orion_poc(
+            backend='track:cockroach://localhost:8123?objective=epoch_loss',
+            max_trials=2
+        )
+    except Exception as e:
+        raise e
+
+    finally:
+        db.stop()
 
 
 def mongodb():
@@ -52,4 +72,8 @@ def mongodb():
 
 
 if __name__ == '__main__':
-    test_orion_poc()
+    sys.stderr = sys.stdout
+
+    # test_orion_poc(backend='track:file://orion_results.json?objective=epoch_loss')
+    test_orion_cockroach()
+

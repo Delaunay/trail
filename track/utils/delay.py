@@ -1,5 +1,3 @@
-
-
 class FutureIsNotReady(Exception):
     pass
 
@@ -24,6 +22,8 @@ class Future:
 
 
 class DelayedCall:
+    """Delay a call until later"""
+
     def __init__(self, fun, kwargs):
         self.fun = fun
         self.kwargs = kwargs
@@ -71,28 +71,3 @@ def is_delayed_call(obj):
     return isinstance(obj, DelayedCall) and obj.returned is None
 
 
-if __name__ == '__main__':
-    class Obj:
-        a = 0
-        b = 0
-
-        def set(self, a=0, b=0):
-            self.a = a
-            self.b = b
-            return self
-
-        def get(self):
-            return self.a + self.b
-
-    def add(a, b):
-        return a + b
-
-    delayed_call = delay_call(add, a=2)
-    print(delayed_call(b=2))
-
-    obj = Obj()
-
-    delayed_call2 = delay_call(obj.set, a=2)
-
-    print(delayed_call2)
-    print(delayed_call2.get())

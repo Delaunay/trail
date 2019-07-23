@@ -12,7 +12,7 @@ import torchvision.models as models
 import torch.nn.functional as F
 import argparse
 
-from orion.client import report_results
+# from orion.client import report_results
 
 sys.stderr = sys.stdout
 
@@ -28,7 +28,7 @@ def end_to_end_train(backend, argv=None):
     parser.add_argument('--cuda', action='store_true', dest='cuda', default=True, help='enable cuda')
     parser.add_argument('--no-cuda', action='store_false', dest='cuda', help='disable cuda')
 
-    parser.add_argument('--workers', '-j', type=int, default=4, help='number of workers/processors to use')
+    parser.add_argument('--workers', '-j', type=int, default=0, help='number of workers/processors to use')
     parser.add_argument('--seed', '-s', type=int, default=0, help='seed to use')
     parser.add_argument('--epochs', '-e', type=int, default=2, help='number of epochs')
 
@@ -56,7 +56,7 @@ def end_to_end_train(backend, argv=None):
     trial.new_trial()
     trial.add_tags(workers=8, hpo='byopt')
 
-    if torch.cuda.is_available():
+    if torch.cuda.is_available() and args.batch_size == 32:
         args.batch_size = 4096
 
     args = trial.get_arguments(args, show=True)
@@ -219,19 +219,23 @@ def end_to_end_train(backend, argv=None):
             trial.log_metrics(step=epoch, epoch_loss=epoch_loss)
             # ---
 
-    try:
-        report_results([{
-            'name': 'loss',
-            'type': 'objective',
-            'value': epoch_loss
-        }])
-    except RuntimeWarning:
-        pass
+    # try:
+    #     report_results([{
+    #         'name': 'loss',
+    #         'type': 'objective',
+    #         'value': epoch_loss
+    #     }])
+    # except RuntimeWarning:
+    #     pass
 
     trial.report()
     trial.save()
+    print('Finished')
+    print('--------')
 
 
 if __name__ == '__main__':
     import sys
+    print('Starting')
+    print('--------')
     end_to_end_train('file:', sys.argv[1:])

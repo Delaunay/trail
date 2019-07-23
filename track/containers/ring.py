@@ -3,7 +3,11 @@ import array
 
 class RingBuffer:
     def __init__(self, size, dtype, default_val=0):
-        self.array = array.array(dtype, [default_val] * size)
+        if len(str(dtype)) > 1:
+            self.array = [default_val] * size
+        else:
+            self.array = array.array(dtype, [default_val] * size)
+
         self.capacity = size
         self.offset = 0
 

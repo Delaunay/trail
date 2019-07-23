@@ -1,50 +1,71 @@
 import json
-import inspect
-from typing import Union, Callable, Dict
+import os
+
+from typing import Union, Callable, Dict, Optional
 
 from argparse import ArgumentParser, Namespace
-
-from benchutils.statstream import StatStream
-from track.utils.throttle import throttled
 from track.structure import Trial, Project, TrialGroup
 
 from track.logger import TrialLogger
 from track.persistence import get_protocol
 from track.serialization import to_json
 from track.versioning import default_version_hash
-from track.utils.eta import EstimatedTime
 from track.configuration import options
-from track.utils.out import RingOutputDecorator
 from track.utils.delay import delay_call, is_delayed_call
-from track.utils.log import warning
+from track.utils.log import warning, debug, info
 
 
-# Client has a lot of methods on purpose. This is our unified API
+class TrialDoesNotExist(Exception):
+    pass
+
+
 # pylint: disable=too-many-public-methods
 class TrackClient:
-    """ TrackClient. A client tracks a single Trial being ran"""
+    """ TrackClient. A client tracks a single Trial being ran
+
+    Parameters
+    ----------
+    backend: str
+        Storage backend to use
+    """
 
     def __init__(self, backend=options('log.backend.name', default='none')):
-
         self.project = None
         self.group = None
         self.trial = None
 
         self.protocol = get_protocol(backend)
         self.logger: TrialLogger = None
-        self.eta = EstimatedTime(None, 1)
-
-        self.code = None
-        self.stderr = None
-        self.stdout = None
-        self.batch_printer = None
         self.set_version()
 
         self.version = None
         self.set_version()
 
+        # Orion integration
+        # -----------------
+        orion_name = os.environ.get('ORION_PROJECT')
+        if orion_name is not None:
+            self.set_project(name=orion_name, get_only=True)
+
+        orion_exp = os.environ.get('ORION_EXPERIMENT')
+        if orion_exp is not None:
+            self.set_group(name=orion_exp, get_only=True)
+
+        orion_trial = os.environ.get('ORION_TRIAL_ID')
+        if orion_trial is not None:
+            self.set_trial(uid=orion_trial)
+
     def set_version(self, version=None, version_fun: Callable[[], str] = None):
-        """ compute the version tag from the function call stack """
+        """Compute the version tag from the function call stack. Defaults to compute the hash of the executed file
+
+        Parameters
+        ----------
+        version: str
+            version string you want to use for the trial
+
+        version_fun: Callable[[], str]
+            version function to call to set the trial version
+        """
         def version_compute():
             fun = version_fun
             if fun is None:
@@ -58,9 +79,36 @@ class TrackClient:
         self.version = version_compute
         return self
 
-    def set_project(self, project=None, name=None, tags=None, description=None):
+    def set_project(self, project: Optional[Project] = None, force: bool = False, get_only: bool = False, **kwargs):
+        """Set or create a new project
+
+        Parameters
+        ----------
+        project: Optional[Project]
+            project definition you can use to create or set the project
+
+        force: bool
+            by default once the project is set it cannot be changed.
+            use force to override this behaviour.
+
+        get_only: bool
+            if true does not insert the project if missing.
+            default to false
+
+        kwargs
+            arguments used to create a `Project` object if no project object were provided
+            See :func:`~track.structure.Project` for possible arguments
+
+        Returns
+        -------
+        returns created project
+        """
+        if self.project is not None and not force:
+            info('Project is already set, to override use force=True')
+            return self.project
+
         if project is None:
-            project = Project(name=name, tags=tags, description=description)
+            project = Project(**kwargs)
 
         assert project.name is not None, 'Project name cannot be none'
 
@@ -70,12 +118,45 @@ class TrackClient:
         if self.project is not None:
             return self.project
 
+        if get_only:
+            raise RuntimeError(f'Project (name: {project.name}) was not found!')
+
         self.project = self.protocol.new_project(project)
+
+        debug(f'set project to (project: {self.project.name})')
         return self.project
 
-    def set_group(self, group: TrialGroup = None, name=None, tags=None, description=None):
+    def set_group(self, group: Optional[TrialGroup] = None, force: bool = False, get_only: bool = False, **kwargs):
+        """Set or create a new group
+
+        Parameters
+        ----------
+        group: Optional[TrialGroup]
+            project definition you can use to create or set the project
+
+        force: bool
+            by default once the trial group is set it cannot be changed.
+            use force to override this behaviour.
+
+        get_only: bool
+            if true does not insert the group if missing.
+            default to false
+
+        kwargs
+            arguments used to create a `TrialGroup` object if no TrialGroup object were provided.
+            See :func:`~track.structure.TrialGroup` for possible arguments
+
+        Returns
+        -------
+        returns created trial group
+        """
+
+        if self.group is not None and not force:
+            info('Group is already set, to override use force=True')
+            return self.group
+
         if group is None:
-            group = TrialGroup(name=name, tags=tags, description=description, project_id=self.project.uid)
+            group = TrialGroup(**kwargs)
 
         if group.project_id is None:
             group.project_id = self.project.uid
@@ -85,8 +166,127 @@ class TrackClient:
         if self.group is not None:
             return self.group
 
+        if get_only:
+            raise RuntimeError(f'Group (name: {group.name}) was not found!')
+
         self.group = self.protocol.new_trial_group(group)
         return self.group
+
+    def set_trial(self, trial: Optional[Trial] = None, force: bool = False, **kwargs):
+        """Set a new trial
+
+        Parameters
+        ----------
+        trial: Optional[Trial]
+            project definition you can use to create or set the project
+
+        force: bool
+            by default once the trial is set it cannot be changed.
+            use force to override this behaviour.
+
+        kwargs: {uid, hash, revision}
+            arguments used to create a `Trial` object if no Trial object were provided.
+            You should specify `uid` or the pair `(hash, revision)`.
+            See :func:`~track.structure.Trial` for possible arguments
+
+        Returns
+        -------
+        returns a trial logger
+        """
+        if self.trial is not None and not force:
+            info('Trial is already set, to override use force=True')
+            return self.logger
+
+        if trial is None:
+            uhash = kwargs.pop('hash', None)
+            uid = kwargs.pop('uid', None)
+
+            trial = Trial(**kwargs)
+            if uhash is not None:
+                trial.hash = uhash
+
+            if uid is not None:
+                trial.uid = uid
+
+        try:
+            trials = self.protocol.get_trial(trial)
+
+            if trials is None:
+                raise TrialDoesNotExist(f'Trial (hash: {trial.hash}, rev: {trial.revision}) does not exist!')
+
+            self.trial = trials[0]
+            self.logger = TrialLogger(self.trial, self.protocol)
+            return self.logger
+
+        except IndexError:
+            raise TrialDoesNotExist(f'cannot set trial (id: {trial.uid}, hash:{hash}) it does not exist')
+
+    def _new_trial(self, force=False, arguments=None, **kwargs):
+        """Create a new trial if all the required arguments are satisfied.
+
+        To provide a better user experience if not all arguments are provided a delayed trials is created
+        that holds all the data provided and will create the trial once all arguments are ready.
+        Currently only `arguments` i.e the parameters of the experience is required. This is
+        because they are needed to compute the trial uid (which is a hash of the parameters)
+
+        Parameters
+        ----------
+        force: bool
+            by default once the trial is set it cannot be changed.
+            use force to override this behaviour.
+
+        kwargs
+            See :func:`~track.structure.Trial` for possible arguments
+
+        Returns
+        -------
+        returns a trial
+        """
+        if self.trial is not None and not is_delayed_call(self.trial) and not force:
+            info(f'Trial is already set, to override use force=True')
+            return self.trial
+
+            # if arguments are not specified do not create the trial just yet
+            # wait for the user to be able to specify the parameters so we can have a meaningful hash
+        if arguments is None:
+            if is_delayed_call(self.trial):
+                raise RuntimeError('Trial needs arguments')
+
+            self.trial = delay_call(self._new_trial, **kwargs)
+            # return the logger with the delayed trial
+            return self.trial
+
+            # replace the trial or delayed trial by its actual value
+        if self.trial is None or is_delayed_call(self.trial):
+            self.trial = self._make_trial(arguments=arguments, **kwargs)
+
+        if self.project is not None:
+            self.protocol.add_project_trial(self.project, self.trial)
+
+        if self.group is not None:
+            self.protocol.add_group_trial(self.group, self.trial)
+
+        return self.trial
+
+    def new_trial(self, force=False, **kwargs):
+        """Create a new trial
+
+        Parameters
+        ----------
+        force: bool
+            by default once the trial is set it cannot be changed.
+            use force to override this behaviour.
+
+        kwargs:
+            See :func:`~track.structure.Trial` for possible arguments
+
+        Returns
+        -------
+        returns a trial logger
+        """
+        self.trial = self._new_trial(force, **kwargs)
+        self.logger = TrialLogger(self.trial, self.protocol)
+        return self.logger
 
     def _make_trial(self, arguments, name=None, **kwargs):
         project_id = None
@@ -108,64 +308,41 @@ class TrackClient:
         trial = self.protocol.new_trial(trial)
         return trial
 
-    def set_trial(self, uid=None, hash=None, revision=None):
-        if uid is not None:
-            hash, revision = uid.split('_')
-        else:
-            assert hash is not None and revision is not None
-
-        try:
-            self.trial = self.protocol.get_trial(Trial(_hash=hash, revision=revision))[0]
-            self.logger = TrialLogger(self.trial, self.protocol)
-            return self.logger
-
-        except IndexError:
-            raise RuntimeError(f'cannot set trial (id: {uid}, hash:{hash}) it does not exist')
-
-    def new_trial(self, arguments=None, name=None, description=None, **kwargs):
-        uid = options('trial.uid', None)
-
-        if uid is not None:
-            return self.set_trial(uid=uid)
-
-        # if arguments are not specified do not create the trial just yet
-        # wait for the user to be able to specify the parameters so we can have a meaningful hash
-        if arguments is None and uid is None:
-            if is_delayed_call(self.trial):
-                raise RuntimeError('Trial needs arguments')
-
-            self.trial = delay_call(self.new_trial, name=name, description=description, **kwargs)
-            return self.trial.get_future()
-
-        # replace the trial or delayed trial by its actual value
-        if self.trial is None or is_delayed_call(self.trial):
-            self.trial = self._make_trial(arguments, name=name)
-
-        self.logger = TrialLogger(self.trial, self.protocol)
-
-        if self.project is not None:
-            self.protocol.add_project_trial(self.project, self.trial)
-
-        if self.group is not None:
-            self.protocol.add_group_trial(self.group, self.trial)
-
-        return self.logger
-
     def add_tags(self, **kwargs):
+        """Insert tags to current trials"""
         # We do not need to create the trial to add tags.
         # just append the tags to the trial call when it is going to be created
         if is_delayed_call(self.trial):
-            self.trial.add_arguments(**kwargs)
+            self.trial.add_arguments(tags=kwargs)
         else:
             self.logger.add_tags(**kwargs)
 
-    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
+    def get_arguments(self, args: Union[ArgumentParser, Namespace, Dict] = None, show=False, **kwargs) -> Namespace:
+        """See :func:`~track.client.log_arguments` for possible arguments"""
         return self.log_arguments(args, show, **kwargs)
 
-    def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict], show=False, **kwargs) -> Namespace:
-        """ Store the arguments that was used to run the trial.  """
+    def log_arguments(self, args: Union[ArgumentParser, Namespace, Dict] = None, show=False, **kwargs) -> Namespace:
+        """Store the arguments that was used to run the trial.
 
-        nargs = args
+        Parameters
+        ----------
+        args: Union[ArgumentParser, Namespace, Dict]
+            save up the trial's arguments
+
+        show: bool
+            print the arguments on the command line
+
+        kwargs
+            more trial's arguments
+
+        Returns
+        -------
+        returns the trial's arguments
+        """
+        nargs = dict()
+        if args is not None:
+            nargs = args
+
         if isinstance(args, ArgumentParser):
             nargs = args.parse_args()
 
@@ -176,7 +353,8 @@ class TrackClient:
 
         # if we have a pending trial create it now as we have all the information
         if is_delayed_call(self.trial):
-            self.trial(arguments=kwargs)
+            self.trial = self.trial(arguments=kwargs)
+            self.logger = TrialLogger(self.trial, self.protocol)
         else:
             # we do not need to log the arguments they are inside the trial already
             self.logger.log_arguments(**kwargs)
@@ -190,11 +368,12 @@ class TrackClient:
         return args
 
     def __getattr__(self, item):
-        """ try to use the backend attributes if not available """
+        """Try to use the backend attributes if not available"""
 
         if is_delayed_call(self.trial):
             warning('Creating a trial without parameters!')
-            self.trial()
+            self.logger = self.trial()
+            self.trial = self.logger.trial
 
         # Look for the attribute in the top level logger
         if hasattr(self.logger, item):
@@ -202,59 +381,24 @@ class TrackClient:
 
         raise AttributeError(item)
 
-    def log_code(self):
-        self.code = open(inspect.stack()[-1].filename, 'r').read()
-        return self
-
-    def show_eta(self, step: int, timer: StatStream, msg: str = '',
-                 throttle=options('log.print.throttle', None),
-                 every=options('log.print.every', None),
-                 no_print=options('log.print.disable', False)):
-
-        self.eta.timer = timer
-
-        if self.batch_printer is None:
-            self.batch_printer = throttled(self.eta.show_eta, throttle, every)
-
-        if not no_print:
-            self.batch_printer(step, msg)
-        return self
-
     def report(self, short=True):
-        """ print a digest of the logged metrics """
+        """Print a digest of the logged metrics"""
         self.logger.finish()
         print(json.dumps(to_json(self.trial, short), indent=2))
         return self
 
     def save(self, file_name_override=None):
-        """ saved logged metrics into a json file """
+        """Saved logged metrics into a json file"""
         self.protocol.commit(file_name_override=file_name_override)
 
     @staticmethod
     def get_device():
-        """ helper function that returns a cuda device if available else a cpu"""
+        """Helper function that returns a cuda device if available else a cpu"""
         import torch
 
         if torch.cuda.is_available():
             return torch.device('cuda')
         return torch.device('cpu')
-
-    # -- Getter Setter
-    def set_eta_total(self, t):
-        self.eta.set_totals(t)
-        return self
-
-    def capture_output(self):
-        import sys
-        do_stderr = sys.stderr is not sys.stdout
-
-        self.stdout = RingOutputDecorator(file=sys.stdout, n_entries=options('log.stdout_capture', 50))
-        sys.stdout = self.stdout
-
-        if do_stderr:
-            self.stderr = RingOutputDecorator(file=sys.stderr, n_entries=options('log.stderr_capture', 50))
-            sys.stderr = self.stderr
-        return self
 
     def finish(self, exc_type=None, exc_val=None, exc_tb=None):
         return self.logger.finish(exc_type, exc_val, exc_tb)

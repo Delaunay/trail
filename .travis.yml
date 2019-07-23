@@ -20,7 +20,8 @@ jobs:
   include:
     - stage: unit-test
       script:
-        - python -m pytest --cov=track tests/
+        - python -m pytest --cov=track tests/unit
+        - python -m pytest --cov-append --cov=track tests/e2e
         - codecov
     - stage: pep8
       script:

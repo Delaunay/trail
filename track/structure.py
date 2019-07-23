@@ -1,6 +1,6 @@
 """ hold basic data type classes that all backends need to implement """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
 from track.versioning import compute_hash
@@ -40,6 +40,9 @@ class CustomStatus:
         return self._value
 
     def __eq__(self, other):
+        if isinstance(other, str):
+            return self.name == other
+
         return self.value == other.value and self.name == other.name
 
 
@@ -64,14 +67,24 @@ class Trial:
     def uid(self) -> str:
         return f'{self.hash}_{self.revision}'
 
-    def compute_hash(self) -> str:
-        return compute_hash(self.name, self.version, **self.parameters)
+    @uid.setter
+    def uid(self, value):
+        h, r = value.rsplit('_', maxsplit=1)
+        self._hash = h
+        self.revision = r
 
     @property
     def hash(self):
         if self._hash is None:
             self._hash = self.compute_hash()
         return self._hash
+
+    @hash.setter
+    def hash(self, v):
+        self._hash = v
+
+    def compute_hash(self) -> str:
+        return compute_hash(self.name, self.version, **self.parameters)
 
     _hash: str = None
     revision: int = 0                   # if uid is a duplicate rev += 1
@@ -99,6 +112,9 @@ class Trial:
     def __hash__(self):
         return hash(self.uid)
 
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
+
 
 @dataclass
 class TrialGroup:
@@ -119,13 +135,16 @@ class TrialGroup:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: Dict[str, any] = field(default_factory=dict)
-    trials: List[Trial] = field(default_factory=list)
+    metadata: Dict[str, any] = field(default_factory=dict)
+    trials: Set[Trial] = field(default_factory=set)
 
     project_id: Optional[int] = None
 
     def __hash__(self):
         return hash(self.uid)
+
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
 
 
 @dataclass
@@ -147,12 +166,15 @@ class Project:
     _uid: str = None
     name: Optional[str] = None
     description: Optional[str] = None
-    tags: Dict[str, any] = field(default_factory=dict)
-    groups: List[TrialGroup] = field(default_factory=list)
-    trials: List[Trial] = field(default_factory=list)
+    metadata: Dict[str, any] = field(default_factory=dict)
+    groups: Set[TrialGroup] = field(default_factory=set)
+    trials: Set[Trial] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self.uid)
+
+    def __eq__(self, other):
+        return hash(other) == hash(self.uid)
 
 
 _current_project = None

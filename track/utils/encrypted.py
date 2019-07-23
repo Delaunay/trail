@@ -1,4 +1,3 @@
-from asyncio import streams, transports, get_event_loop
 import socket
 
 from cryptography.hazmat.backends import default_backend
@@ -13,14 +12,10 @@ from cryptography.hazmat.primitives import padding
 
 
 class EncryptedSocket(socket.socket):
-    """ it is actually impossible to use a custom socket with asyncio ...
-    it `is` possible but it has so many indirection it just retarded"""
+    """Socket with an encrypted layer"""
 
     def __init__(self, *args, **kwargs):
-        raise TypeError(
-            f"{self.__class__.__name__} does not have a public "
-            f"constructor."
-        )
+        raise TypeError(f"{self.__class__.__name__} does not have a public constructor.")
 
     @classmethod
     def _create(cls, sock, server_side=False, handshaked=False):
@@ -33,10 +28,7 @@ class EncryptedSocket(socket.socket):
         self.settimeout(sock.gettimeout())
         sock.detach()
 
-        self.encrypt = None
-        self.decrypt = None
-        self.padder = padding.PKCS7(128).padder()
-        self.unpadder = padding.PKCS7(128).unpadder()
+        self.cipher = None
         self.message_size = None
         self.message_received = None
         self.server_side = server_side
@@ -48,12 +40,12 @@ class EncryptedSocket(socket.socket):
         return self
 
     def _handshake(self):
-        """
-            open a socket to address, port and initialize the encryption layer by exchanging a key
-            using X25519. The key is used as an AES key throughout the communication.
-            If the connection fails a new AES key will be issued.
+        """Open a socket to address, port and initialize the encryption layer by exchanging a key using X25519.
+        The key is used as an AES key throughout the communication.
 
-            :return: self
+        Returns
+        -------
+        return itself
         """
         private_key = X25519PrivateKey.generate()
         pubkey = private_key.public_key().public_bytes(
@@ -79,17 +71,20 @@ class EncryptedSocket(socket.socket):
             backend=default_backend()
         ).derive(shared_key)
 
-        cipher = Cipher(algorithms.AES(key[0:32]), modes.CBC(key[32:]), backend=default_backend())
-
-        self.encrypt = cipher.encryptor()
-        self.decrypt = cipher.decryptor()
+        self.cipher = Cipher(
+            algorithms.AES(key[0:32]),
+            modes.CBC(key[32:]),
+            backend=default_backend()
+        )
 
         return self
 
     def accept(self):
-        """
-            accept an incoming connection & initialize the encryption layer for that client
-            :return: self
+        """Accept an incoming connection & initialize the encryption layer for that client
+
+        Returns
+        -------
+        returns (socket, addr) of the client
         """
 
         clt, addr = super().accept()
@@ -118,55 +113,69 @@ class EncryptedSocket(socket.socket):
         ).derive(shared_key)
 
         encrypted_socket = wrap_socket(clt, False, handshaked=True)
-        cipher = Cipher(algorithms.AES(shared_key[0:32]), modes.CBC(shared_key[32:]), backend=default_backend())
-
-        encrypted_socket.encrypt = cipher.encryptor()
-        encrypted_socket.decrypt = cipher.decryptor()
+        encrypted_socket.cipher = Cipher(
+            algorithms.AES(shared_key[0:32]),
+            modes.CBC(shared_key[32:]),
+            backend=default_backend()
+        )
 
         return encrypted_socket, addr
+
+    def send(self, data: bytes, flags: int = 0) -> int:
+        self.sendall(data, flags)
+        return len(data)
 
     def sendall(self, data, flags: int = 0):
         if isinstance(data, bytearray):
             data = bytes(data)
 
-        padded_bytes = self.padder.update(data)
-        padded_bytes += self.padder.finalize()
+        encrypt = self.cipher.encryptor()
+        padder = padding.PKCS7(128).padder()
 
-        encrypted = self.encrypt.update(padded_bytes)
-        encrypted += self.encrypt.finalize()
+        padded_bytes = padder.update(data)
+        padded_bytes += padder.finalize()
 
-        print('SEND', data)
-        print('SEND', encrypted, len(encrypted))
+        encrypted = encrypt.update(padded_bytes)
+        encrypted += encrypt.finalize()
 
         super().sendall(encrypted, flags)
+        return len(data)
 
-    def recv(self, buffersize, flags: int = 0):
-        # import inspect
-        #
-        # stack = inspect.stack()
-        # for s in stack:
-        #     print('    ', s.function, s.filename)
+    def readsize(self):
+        decrypt = self.cipher.decryptor()
+        unpadder = padding.PKCS7(128).unpadder()
+
+        size = super().recv(4)
+        return size, (decrypt, unpadder)
+
+    def recv(self, buffersize, flags: int = 0, context=None):
         data = super().recv(buffersize, flags)
 
-        print('RECV: CLEAR', data, len(data), self.server_side)
-        decrypted = self.decrypt.update(data)
+        # no data nothing to decrypt
+        if not data:
+            return data
+
+        # ----
+        if context is None:
+            decrypt = self.cipher.decryptor()
+            unpadder = padding.PKCS7(128).unpadder()
+        else:
+            decrypt, unpadder = context
+        # ----
+
+        decrypted = decrypt.update(data)
 
         while True:
             try:
-                decrypted += self.decrypt.finalize()
-                print('END', decrypted)
+                decrypted += decrypt.finalize()
                 break
 
-            except ValueError as e:
-                print(e)
-
+            except ValueError:
                 data = super().recv(buffersize, flags)
-                decrypted += self.decrypt.update(data)
+                decrypted += decrypt.update(data)
 
-                print('NEXT: ', decrypted)
-
-        unpadded = self.unpadder.update(decrypted)
-        unpadded += self.unpadder.finalize()
+        unpadded = unpadder.update(decrypted)
+        unpadded += unpadder.finalize()
 
         return unpadded
 
@@ -177,43 +186,3 @@ def wrap_socket(sock, server_side=False, handshaked=False):
         server_side=server_side,
         handshaked=handshaked
     )
-
-
-class CustomTransport(transports.Transport):
-    def __init__(self, loop, protocol, *args, **kwargs):
-        self._loop = loop
-        self._protocol = protocol
-
-    def get_protocol(self):
-        return self._protocol
-
-    def set_protocol(self, protocol):
-        return self._protocol
-
-    def read(self, len=1024, buffer=None):
-        buffer = self._protocol.recv(len)
-        if buffer is None:
-            return buffer
-
-    def write(self, data):
-        return self._protocol.recv(data)
-
-
-async def custom_create_connection(protocol_factory, *args, **kwargs):
-    loop = get_event_loop()
-    protocol = protocol_factory()
-    transport = CustomTransport(loop, protocol, *args, **kwargs)
-    return transport, protocol
-
-
-async def custom_open_connection(*args, **kwargs):
-    reader = streams.StreamReader()
-    protocol = streams.StreamReaderProtocol(reader)
-
-    def factory():
-        return protocol
-
-    transport, _ = await custom_create_connection(factory, *args, **kwargs)
-
-    writer = streams.StreamWriter(transport, protocol, reader)
-    return reader, writer

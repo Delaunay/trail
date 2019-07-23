@@ -1,4 +1,4 @@
-from track.utils.log import warning
+from track.utils.log import warning, debug
 from track.persistence.utils import parse_uri
 from track.persistence.multiplexer import ProtocolMultiplexer
 
@@ -9,9 +9,9 @@ def make_comet_ml(uri):
     return CometMLProtocol(uri)
 
 
-def make_local(uri, strict=True):
+def make_local(uri, strict=True, eager=True):
     from track.persistence.local import FileProtocol
-    return FileProtocol(uri, strict)
+    return FileProtocol(uri, strict, eager)
 
 
 def make_socket_protocol(uri):
@@ -45,24 +45,12 @@ def get_protocol(backend_name):
         log = _protocols.get('__default__')
 
     if log is make_local:
+        debug('return local protocol')
         return log(backend_name)
     else:
+        debug('return multiplexed protocol')
         return ProtocolMultiplexer(
-            make_local('file:', strict=False),  # Make a file Protocol to log everything in memory as well as remotely
+            # Make a file Protocol to log everything in memory as well as remotely
+            make_local('file:', strict=False, eager=False),
             log(backend_name)
         )
-
-
-if __name__ == '__main__':
-
-    a = parse_uri('protocol://username:password@host1:port1/database?options=2')
-    print(a)
-
-    a = parse_uri('socket://192.128.0.1:8123/database?options=2')
-    print(a)
-
-    a = parse_uri('cometml:workspace/project?options=2')
-    print(a)
-
-    a = parse_uri('file:test.json')
-    print(a)

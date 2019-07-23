@@ -1,8 +1,9 @@
 from uuid import UUID
 from typing import Dict
+import datetime
 
 from track.chrono import ChronoContext
-from track.structure import Project, Trial, TrialGroup, Status, status
+from track.structure import Project, Trial, TrialGroup, Status, status, CustomStatus
 
 
 class SerializerAspect:
@@ -51,23 +52,24 @@ class SerializerTrialGroup(SerializerAspect):
             'uid': to_json(obj.uid),
             'name': obj.name,
             'description': obj.description,
-            'tags': obj.tags,
+            'metadata': obj.metadata,
             'project_id': obj.project_id,
-            'trials': obj.trials
+            'trials': list(obj.trials)
         }
 
 
 class SerializerProject(SerializerAspect):
     def to_json(self, obj: Project, short=False):
-        return {
+        p = {
             'dtype': 'project',
             'uid': to_json(obj.uid),
             'name': obj.name,
             'description': obj.description,
-            'tags': obj.tags,
+            'metadata': obj.metadata,
             'trials': [to_json(t, short) for t in obj.trials],
             'groups': [to_json(g, short) for g in obj.groups]
         }
+        return p
 
 
 class SerializerChronoContext(SerializerAspect):
@@ -83,18 +85,27 @@ class SerializerStatus(SerializerAspect):
         }
 
 
+class SerializerDatetime(SerializerAspect):
+    def to_json(self, obj: datetime.datetime, short=False):
+
+        return (obj - datetime.datetime(1970, 1, 1)).total_seconds()
+
+
 serialization_aspects = {
     UUID: SerializerUUID(),
     Project: SerializerProject(),
     TrialGroup: SerializerTrialGroup(),
     Trial: SerializerTrial(),
     ChronoContext: SerializerChronoContext(),
-    Status: SerializerStatus()
+    Status: SerializerStatus(),
+    datetime.datetime: SerializerDatetime(),
+    CustomStatus: SerializerStatus()
 }
 
 
 def to_json(k: any, short=False):
     aspect = serialization_aspects.get(type(k))
+
     if aspect is not None:
         return aspect.to_json(k, short)
 
@@ -120,13 +131,17 @@ def from_json(obj: Dict[str, any]) -> any:
     dtype = obj.get('dtype')
 
     if dtype == 'project':
+        # from track.utils.debug import print_stack
+        # if obj.get('metadata') is None:
+        #     print_stack()
+
         return Project(
             _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
-            tags=obj['tags'],
-            groups=[from_json(g) for g in obj['groups']],
-            trials=[from_json(t) for t in obj['trials']],
+            metadata=obj['metadata'],
+            groups=set([from_json(g) for g in obj['groups']]),
+            trials=set([from_json(t) for t in obj['trials']]),
         )
 
     elif dtype == 'trial_group':
@@ -134,8 +149,8 @@ def from_json(obj: Dict[str, any]) -> any:
             _uid=obj['uid'],
             name=obj['name'],
             description=obj['description'],
-            tags=obj['tags'],
-            trials=obj['trials'],
+            metadata=obj['metadata'],
+            trials=set(obj['trials']),
             project_id=obj['project_id']
         )
 
@@ -150,7 +165,7 @@ def from_json(obj: Dict[str, any]) -> any:
             group_id=obj['group_id'],
             project_id=obj['project_id'],
             parameters=obj['parameters'],
-            metadata=obj['metadata'],
+            metadata=to_json(obj['metadata']),
             metrics=obj['metrics'],
             chronos=obj['chronos'],
             errors=obj['errors'],

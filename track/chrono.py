@@ -4,9 +4,8 @@ import time
 
 
 class ChronoContext:
-    """
-        sync is a function that can be set to make the timer wait before ending.
-        This is useful when timing async calls like cuda calls
+    """Sync is a function that can be set to make the timer wait before ending.
+    This is useful when timing async calls like cuda calls
     """
 
     def __init__(self, acc: Aggregator, start_callback: Callable = None, end_callback: Callable = None):

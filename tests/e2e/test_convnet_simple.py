@@ -1,12 +1,21 @@
 import sys
 
+from tests.config import remove, is_travis
 from tests.e2e.end_to_end import end_to_end_train
+
 from track.persistence.socketed import start_track_server
 from multiprocessing import Process
-from tests.config import is_travis
+
 import pytest
 
 sys.stderr = sys.stdout
+
+try:
+    from pytest_cov.embed import cleanup_on_sigterm
+except ImportError:
+    pass
+else:
+    cleanup_on_sigterm()
 
 
 SKIP_COMET = True
@@ -14,11 +23,15 @@ SKIP_SERVER = True
 
 
 def test_e2e_file():
+    remove('file_test.json')
     end_to_end_train('file://file_test.json')
+    remove('file_test.json')
 
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_e2e_server_socket():
+    remove('server_test.json')
+
     if SKIP_SERVER:
         return
 
@@ -38,6 +51,7 @@ def test_e2e_server_socket():
     print('Starting client')
 
     end_to_end_train(f'socket://test:123@localhost:{port}')
+    remove('server_test.json')
 
 
 @pytest.mark.skipif(is_travis(), reason='Travis is too slow')

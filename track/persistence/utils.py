@@ -41,13 +41,3 @@ def parse_options(options):
         opt[k] = v
 
     return opt
-
-
-if __name__ == '__main__':
-    hostname = 'localhost'
-    port = 8123
-    protocol = 'file://test.json'
-
-    print(parse_uri(f'socket://{hostname}:{port}?backend={protocol}&test=2'))
-
-

@@ -22,11 +22,14 @@ def to_list(item):
 
 
 class EstimatedTime:
-    """
-        eta = EstimatedTime(timer, (total_epoch, batch_per_epoch))
+    """Compute estimated time to arrival given average time and remaining steps
 
-        eta.estimate_time((1, 2)
-
+    Example
+    -------
+    >>> timer = StatStream()
+    >>> total = (10, 1000)
+    >>> eta = EstimatedTime(timer, total)
+    >>> eta.estimate_time((1, 2))
     """
     def __init__(self, stat_timer: StatStream, total: Union[int, List[int]], start: int = 0, name: str = None):
         self.offset = 1 - start
@@ -36,7 +39,7 @@ class EstimatedTime:
         self.name = name
 
     def set_totals(self, t):
-        """ set the total number of iteration for each step"""
+        """Set the total number of iteration for each step"""
         self.totals = to_list(t)
 
     @property
@@ -45,7 +48,7 @@ class EstimatedTime:
 
     @staticmethod
     def count(item, offset=0):
-        """ return the current iteration it given the completion of each steps """
+        """Return the current iteration it given the completion of each steps"""
         total = item
         if isinstance(item, list):
             total = 1
@@ -56,16 +59,16 @@ class EstimatedTime:
         return total
 
     def estimated_time(self, step: int, unit: int = minutes):
-        """ estimate the time remaining before the end of the computation """
+        """Estimate the time remaining before the end of the computation"""
         self.last_step = step
         return get_time(self.timer) * (self.total - self.count(step, self.offset)) / unit
 
     def elapsed(self, unit: int = minutes):
-        """ return the elapsed time since the class was created"""
+        """Return the elapsed time since the class was created"""
         return self.timer.total / unit
 
     def show_eta(self, step, msg='', show=True):
-        """ print the estimate time until the processing is done """
+        """Print the estimate time until the processing is done"""
         step = to_list(step)
         was_changed = False
 
