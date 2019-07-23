@@ -1,7 +1,7 @@
 import inspect
 from typing import Callable
 
-from benchutils.statstream import StatStream
+from track.utils.stat import StatStream
 
 from track.configuration import options
 from track.containers.types import float32

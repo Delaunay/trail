@@ -1,6 +1,6 @@
 from track.containers.ring import RingBuffer
 from track.containers.types import float32
-from benchutils.statstream import StatStream
+from track.utils.stat import StatStream
 
 
 class Aggregator:
