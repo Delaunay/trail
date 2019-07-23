@@ -14,6 +14,11 @@ pip install -r requirements
 python setup.py install
 ```
 
+Documentation
+-------------
+
+`sphinx-build -W --color -c docs/src/ -b html docs/src/ docs/build/html`
+
 Overview
 --------
 
