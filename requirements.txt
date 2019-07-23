@@ -2,3 +2,4 @@ dataclasses
 typing
 cryptography
 filelock
+gitpython
