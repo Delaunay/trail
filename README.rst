@@ -1,7 +1,7 @@
 Track
 =====
 
-|codecov| |travis|
+|rtfd| |codecov| |travis|
 
 .. |codecov| image:: https://codecov.io/gh/Delaunay/track/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/Delaunay/track
@@ -10,6 +10,10 @@ Track
 .. |travis| image:: https://travis-ci.org/Delaunay/track.svg?branch=master
     :target: https://travis-ci.org/Delaunay/track
     :alt: Travis tests
+
+.. |rtfd| image:: https://readthedocs.org/projects/track/badge/?version=latest
+    :target: https://track.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 
 Installation

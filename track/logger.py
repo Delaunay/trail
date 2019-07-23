@@ -189,10 +189,11 @@ class TrialLogger:
         # while the trial has not started yet.
         elif self.has_started:
             self.protocol.set_trial_status(self.trial, Status.Completed)
-
             self.parent_chrono.__exit__(exc_type, exc_val, exc_tb)
-            if exc_type is not None:
-                raise exc_type
+
+        self.protocol.commit()
+        if exc_type is not None:
+            raise exc_type
 
     def start(self):
         self.has_started = True

@@ -227,7 +227,9 @@ class TrackClient:
         To provide a better user experience if not all arguments are provided a delayed trials is created
         that holds all the data provided and will create the trial once all arguments are ready.
         Currently only `arguments` i.e the parameters of the experience is required. This is
-        because they are needed to compute the trial uid (which is a hash of the parameters)
+        because they are needed to compute the trial uid (which is a hash of the parameters).
+
+        If no project is set, the trial is inserted in a catch all project named `orphan`
 
         Parameters
         ----------
@@ -242,6 +244,9 @@ class TrackClient:
         -------
         returns a trial
         """
+        if isinstance(arguments, Namespace):
+            arguments = dict(**vars(arguments))
+
         if self.trial is not None and not is_delayed_call(self.trial) and not force:
             info(f'Trial is already set, to override use force=True')
             return self.trial
@@ -260,8 +265,10 @@ class TrackClient:
         if self.trial is None or is_delayed_call(self.trial):
             self.trial = self._make_trial(arguments=arguments, **kwargs)
 
-        if self.project is not None:
-            self.protocol.add_project_trial(self.project, self.trial)
+        if self.project is None:
+            self.project = self.set_project(name='orphan')
+
+        self.protocol.add_project_trial(self.project, self.trial)
 
         if self.group is not None:
             self.protocol.add_group_trial(self.group, self.trial)

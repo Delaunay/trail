@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-
 from __future__ import print_function
+from track import TrackClient
+
 import argparse
 import torch
 import torch.nn as nn
@@ -88,7 +89,8 @@ def main():
                         help='For Saving the current Model')
     args = parser.parse_args()
 
-    trial = TrackClient(backend=backend, trial_id=trial_id)
+    client = TrackClient('file:mnist_example.json')
+    trial = client.new_trial(arguments=args)
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
