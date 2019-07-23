@@ -94,3 +94,47 @@ You can find the sample of a report below
         "name": "Completed"
       }
     }
+
+
+Log Metrics
+-----------
+
+User can log metrics with a step or without. `step` is used as key in a dictionary and should be unique
+
+.. code:: python
+
+    trial.log_metrics(step=e, epoch_loss=loss, metric2=value)
+
+    trial.log_metrics(cost=val)
+
+Time things
+-----------
+
+You can easily time things with `chrono`. Do not forget if you are measuring GPU compute time should should
+synchronize to make sure the computation are done before computing the elapsed time.
+
+.. code:: python
+
+    with trial.chrono('long_compute'):
+        sleep(100)
+
+
+Save arbitrary data
+-------------------
+
+You can use metadata to save information on a specific trial that might not be reflected by its parameters
+
+.. code:: python
+
+    trial.log_metadata(had_short_hair_when_running_this_trial=False)
+
+
+Experiment Report
+-----------------
+
+Get a quick overview of all the data that was saved up during training
+
+.. code:: python
+
+    trial.report()
+
