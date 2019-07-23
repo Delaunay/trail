@@ -120,7 +120,6 @@ class FileProtocol(Protocol):
 
     Parameters
     ----------
-
     uri: str
         resource to use to store the experiment `file://my_file.json`
 
@@ -385,15 +384,9 @@ def _get_attribute(obj, attrs):
 
 
 def execute_query(obj, query):
-    """ check if the object `obj` matches the query.
-        The query is a dictionary specifying constraint on each of the object attributes
+    """Check if the object `obj` matches the query.
 
-        {
-            attr1: value            # attr1 should be equal to value
-            attr2: {                # attr2 should be inside the list of values
-                '$in': [1, 2, 3]
-            }
-        }
+    The query is a dictionary specifying constraint on each of the object attributes
     """
     if query is None:
         return True

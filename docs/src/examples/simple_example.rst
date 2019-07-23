@@ -6,8 +6,8 @@ Installation and setup
 ======================
 
 In this tutorial you will run a very simple MNIST example in pytorch using Track.
-First, install Oríon following :doc:`/install/core`.
-Then install ``pytorch``, ``torchvision`` and clone the
+First, install Track,
+then install ``pytorch``, ``torchvision`` and clone the
 PyTorch `examples repository`_:
 
 .. code-block:: bash
@@ -38,7 +38,7 @@ A trial is a set of data retrieved for a set of arguments.
 
     $ ....
     $ args = parser.parse_args()
-    $ client = TrackClient('file:mnist_excample.py')
+    $ client = TrackClient('file:mnist_example.json')
     $ trial = client.new_trial(arguments=args)
 
 
@@ -50,3 +50,5 @@ In our example we decided to save the error rate on the test set
     $ def test(args, model, device, test_loader, trial):
     $      ...
     $     trial.log_metrics(error_rate=1 - (correct / len(test_loader.dataset)))
+
+At the end of training file `mnist_example.json` will be generated holding all the data you saved during training.

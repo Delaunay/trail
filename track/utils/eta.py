@@ -24,8 +24,8 @@ def to_list(item):
 class EstimatedTime:
     """Compute estimated time to arrival given average time and remaining steps
 
-    Example
-    -------
+    Examples
+    --------
     >>> timer = StatStream()
     >>> total = (10, 1000)
     >>> eta = EstimatedTime(timer, total)

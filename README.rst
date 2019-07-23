@@ -36,7 +36,6 @@ Documentation
 Overview
 --------
 
-
 .. code:: python
 
     from track import TrackClient
