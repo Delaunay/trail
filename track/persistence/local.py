@@ -52,6 +52,11 @@ def make_lock(name, eager):
     return _NoLockLock()
 
 
+class ConcurrentWrite(Exception):
+    def __init__(self, msg):
+        super(ConcurrentWrite, self).__init__(msg)
+
+
 _lock_guard_depth = 0
 
 
@@ -224,10 +229,11 @@ class FileProtocol(Protocol):
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
-        # previous_version = self.storage.get_previous_version_tag(trial)
-        # current_version = self.storage.get_current_version_tag(trial)
-        # if previous_version != current_version:
-        #    raise RuntimeError(f'The trial was modified! {previous_version} != {current_version}')
+        # guarantee atomicity
+        previous_version = self.storage.get_previous_version_tag(trial)
+        current_version = self.storage.get_current_version_tag(trial)
+        if previous_version != current_version:
+            raise ConcurrentWrite(f'The trial was modified! {previous_version} != {current_version}')
 
         trial.status = status
         if error is not None:
