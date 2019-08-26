@@ -30,7 +30,7 @@ class LocalStorage:
     _old_rev_tags: Dict[str, int] = field(default_factory=dict)
 
     def get_previous_version_tag(self, obj):
-        return self._old_rev_tags.get(obj.uid)
+        return self._old_rev_tags.get(obj.uid, 0)
 
     def get_current_version_tag(self, obj):
         if isinstance(obj, Trial):

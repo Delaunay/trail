@@ -70,7 +70,9 @@ def _check(result):
 
 
 class SocketClient(Protocol):
-    """ forwards all the local track requests to the track server that execute the requests and send back the results
+    """Forwards all the local track requests to the track server that execute the requests and send back the results
+
+    Clients can provide a username and password for authentication
     """
 
     # socket://[username:password@]host1[:port1][,...hostN[:portN]]][/[database][?options]]
@@ -81,16 +83,26 @@ class SocketClient(Protocol):
         self.security_layer = uri['query'].get('security_layer')
         self.socket = open_socket(uri.get('address'), int(uri.get('port')), backend=self.security_layer)
 
+        self.token = self._authenticate(uri)
+        info(f'token: {self.token}')
+
+    def authenticate(self, uri):
+        """returns the username and password used for authentication purposes
+        you can override this function to implement a custom authentication method
+        """
+        return self.username, self.password
+
+    def _authenticate(self, uri):
+        username, password = self.authenticate(uri)
         # Should we send the password hashed ? The connection should be secure regardless
         # Plus how would we handle salting
         kwargs = dict()
         kwargs['__rpc__'] = 'authenticate'
-        kwargs['username'] = self.username
-        kwargs['password'] = self.password
+        kwargs['username'] = username
+        kwargs['password'] = password
 
         send(self.socket, kwargs)
-        self.token = _check(recv(self.socket))
-        info(f'token: {self.token}')
+        return _check(recv(self.socket))
 
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
@@ -264,12 +276,17 @@ def write(writer, msg):
 
 
 class SocketServer(Protocol):
-    def __init__(self, uri):
-        """
+    """Start a track server inside a asyncio loop
 
-        :param uri:  socket://{hostname}:{port}?security_layer={}&backend={protocol} with
-                hostname: 127.0.0.1
-        """
+       Parameters
+       ----------
+       uri: str
+           socket://{hostname}:{port}?security_layer={}&backend={protocol} with
+
+       Users inherit this class to implement their own custom authentication
+    """
+
+    def __init__(self, uri):
         from track.persistence import get_protocol
 
         uri = parse_uri(uri)
@@ -282,6 +299,26 @@ class SocketServer(Protocol):
         self.client_cache = {}
         self.sckt = None
         self.loop = None
+
+    def authenticate(self, reader, username, password):
+        """User defined authentication function
+
+        Parameters
+        ----------
+        reader: StreamReader
+            client socket / reader, can be used to link client socket -> username
+
+        username: str
+            client username
+
+        password: str
+            client password
+        """
+        self.authentication[reader] = (username, password)
+        return {
+            'status': 0,
+            'return': True
+        }
 
     # https://stackoverflow.com/questions/48506460/python-simple-socket-client-server-using-asyncio
     def run_server(self):
@@ -441,13 +478,6 @@ class SocketServer(Protocol):
 
     def is_authenticated(self, reader):
         return self.authentication.get(reader) is not None
-
-    def authenticate(self, reader, username, password):
-        self.authentication[reader] = (username, password)
-        return {
-            'status': 0,
-            'return': True
-        }
 
     def commit(self, **kwargs):
         self.backend.commit(**kwargs)
