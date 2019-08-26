@@ -137,6 +137,21 @@ class LocalStorage:
         obj.metadata = new.metadata
 
     def reload(self, filename=None):
+        """Reload storage and discard current objects"""
+        if filename is None:
+            filename = self.target_file
+
+        new_storage = load_database(filename)
+
+        _objects = new_storage._objects
+        _projects = new_storage._projects
+        _groups = new_storage._groups
+        _trials = new_storage._trials
+        _project_names = new_storage._project_names
+        _group_names = new_storage._group_names
+        _trial_names = new_storage._trial_names
+
+    def smart_reload(self, filename=None):
         """Updates current objects with new data"""
         if filename is None:
             filename = self.target_file

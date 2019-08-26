@@ -214,13 +214,43 @@ class Protocol:
         """
         raise NotImplementedError()
 
-    def new_trial(self, trial: Trial):
+    def new_trial(self, trial: Trial, auto_increment=False):
         """Insert a new trial
 
         Parameters
         ----------
         trial: Trial
             trial definition used for the insert
+
+        auto_increment: bool
+            If trial exist increment revision number
+
+        Returns
+        -------
+        Returns None if Trial already exists and auto_increment is False
+        """
+        raise NotImplementedError()
+
+    def fetch_and_update_trial(self, query, attr, *args, **kwargs):
+        """Fetch and update a single trial
+
+        Parameters
+        ----------
+        query: Dict
+            dictionary to fetch trials
+
+        attr: str
+            name of the update function to call on each selected trials
+
+        *args:
+            additional positional arguments for the attr function
+
+        **kwargs:
+            addtional keyword arguments for the attr function
+
+        Returns
+        -------
+        returns the modified trial
         """
         raise NotImplementedError()
 

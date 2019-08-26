@@ -39,7 +39,13 @@ class CustomStatus:
     def value(self):
         return self._value
 
+    def __repr__(self):
+        return f'CStatus<{self.name}>'
+
     def __eq__(self, other):
+        if isinstance(other, dict):
+            return self.value == other.get('value') and self.name == other.get('name')
+
         if isinstance(other, str):
             return self.name == other
 

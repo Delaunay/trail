@@ -85,9 +85,6 @@ def lock_guard(readonly, atomic=False):
 
                 _lock_guard_depth -= 1
 
-            # if _lock_guard_depth == 0:
-            #     debug('filelock end')
-
             return val
 
         return _lock_guard
@@ -178,7 +175,10 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
-        trial.metadata.update(kwargs)
+        t = self.storage.objects.get(trial.uid)
+        if t is not None:
+            t.metadata.update(kwargs)
+
         self._inc_trial(trial)
 
     @lock_write
@@ -229,15 +229,11 @@ class FileProtocol(Protocol):
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
-        # guarantee atomicity
-        previous_version = self.storage.get_previous_version_tag(trial)
-        current_version = self.storage.get_current_version_tag(trial)
-        if previous_version != current_version:
-            raise ConcurrentWrite(f'The trial was modified! {previous_version} != {current_version}')
-
         trial.status = status
+
         if error is not None:
             trial.errors.append(str(error))
+
         self._inc_trial(trial)
 
     # Object Creation
@@ -295,8 +291,11 @@ class FileProtocol(Protocol):
         return None
 
     @lock_write
-    def new_trial(self, trial: Trial):
+    def new_trial(self, trial: Trial, auto_increment=False):
         if trial.uid in self.storage.objects:
+            if not auto_increment:
+                return None
+
             trials = self.get_trial(trial)
 
             max_rev = 0
@@ -364,6 +363,22 @@ class FileProtocol(Protocol):
                 matching_objects.append(obj)
 
         return matching_objects
+
+    @lock_write
+    def fetch_and_update_trial(self, query, attr, *args, **kwargs):
+        print(query)
+        trials = self.fetch_trials(query)
+        fun = getattr(self, attr)
+
+        for t in trials:
+            print('--', t.status)
+
+        if not trials:
+            return None
+
+        fun(trials[0], *args, **kwargs)
+
+        return trials[0]
 
     @lock_read
     def fetch_trials(self, query=None):
@@ -444,7 +459,9 @@ def query_in(obj, attrs, choices):
 
 
 def query_ne(obj, attrs, val):
-    return _get_attribute(obj, attrs) != val
+    v = _get_attribute(obj, attrs)
+    print(v, val)
+    return  v != val
 
 
 def query_lte(obj, attrs, val):
