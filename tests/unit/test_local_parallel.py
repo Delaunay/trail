@@ -12,7 +12,7 @@ def increment():
     backend = make_local('file://test_parallel.json')
     trial = backend.get_trial(Trial(_hash=trial_hash, revision=trial_rev))[0]
 
-    # there is not lock here so the number could have changed already
+    # there is no lock here so the number could have changed already
     count = trial.metadata.get('count', 0)
     backend.log_trial_metadata(trial, count=count + 1)
 
@@ -48,12 +48,13 @@ def test_local_parallel(woker_count=20):
     # -- Setup done
 
     processes = [Process(target=increment) for _ in range(0, woker_count)]
+    print('-- Start')
     [p.start() for p in processes]
     [p.join() for p in processes]
 
     trial = backend.get_trial(trial)[0]
 
-    remove('test_parallel.json')
+    # remove('test_parallel.json')
     print(trial.metadata)
     assert trial.metadata.get('_update_count', 0) == woker_count + 1, 'Parallel write should wait for each other'
 

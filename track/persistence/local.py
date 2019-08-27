@@ -75,7 +75,7 @@ def lock_guard(readonly, atomic=False):
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
                 if self.eager and _lock_guard_depth == 0:
-                    self.storage.reload()
+                    self.storage = load_database(self.path)
 
                 _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
@@ -160,6 +160,7 @@ class FileProtocol(Protocol):
     @lock_write
     def log_trial_start(self, trial):
         trial = self.storage.objects.get(trial.uid)
+
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
@@ -170,6 +171,7 @@ class FileProtocol(Protocol):
     @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
         trial = self.storage.objects.get(trial.uid)
+
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
@@ -178,6 +180,7 @@ class FileProtocol(Protocol):
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         trial = self.storage.objects.get(trial.uid)
+
         trial.metadata.update(kwargs)
         self._inc_trial(trial)
 
@@ -186,6 +189,7 @@ class FileProtocol(Protocol):
                                start_callback=None,
                                end_callback=None):
         trial = self.storage.objects.get(trial.uid)
+
         agg = trial.chronos.get(name)
         if agg is None:
             agg = aggregator()
