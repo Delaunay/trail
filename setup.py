@@ -34,7 +34,7 @@ if __name__ == '__main__':
         ],
         install_requires=requires,
         extras_require={
-            'cockroack': ['psycopg2-binary'],
+            'cockroach': ['psycopg2-binary'],
             'cometml': ['cometml'],
             'mongo': ['pymongo'],
             'orion': ['orion.core']
