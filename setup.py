@@ -36,6 +36,7 @@ if __name__ == '__main__':
             'track.distributed',
             'track.dashboard'
         ],
+        # python_requires='>3.6',
         install_requires=requires,
         extras_require={
             'cockroach': ['psycopg2-binary'],
