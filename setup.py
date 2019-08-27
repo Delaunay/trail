@@ -46,7 +46,6 @@ if __name__ == '__main__':
             'all': [
                 'orion.core',
                 'pymongo',
-                'cometml',
                 'psycopg2-binary'
             ]
         },

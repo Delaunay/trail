@@ -159,23 +159,26 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_start(self, trial):
-        trial = self.storage.objects.get(trial.uid)
+        ntrial = self.storage.objects.get(trial.uid)
 
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
 
-        self._inc_trial(trial)
+        ntrial.chronos['runtime'] = acc
+        self._inc_trial(ntrial)
         return trial
 
     @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
-        trial = self.storage.objects.get(trial.uid)
+        ntrial = self.storage.objects.get(trial.uid)
 
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
-        self._inc_trial(trial)
+
+        ntrial.chronos['runtime'] = acc
+        self._inc_trial(ntrial)
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
@@ -188,7 +191,7 @@ class FileProtocol(Protocol):
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
                                end_callback=None):
-        trial = self.storage.objects.get(trial.uid)
+        ntrial = self.storage.objects.get(trial.uid)
 
         agg = trial.chronos.get(name)
         if agg is None:
@@ -196,19 +199,22 @@ class FileProtocol(Protocol):
             trial.chronos[name] = agg
 
         self.chronos[name] = time.time()
-        self._inc_trial(trial)
+        ntrial.chronos[name] = agg
+        self._inc_trial(ntrial)
 
     @lock_write
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
-        trial = self.storage.objects.get(trial.uid)
+        ntrial = self.storage.objects.get(trial.uid)
         start_time = self.chronos[name]
         acc = trial.chronos[name]
         acc.append(time.time() - start_time)
-        self._inc_trial(trial)
+
+        ntrial.chronos[name] = acc
+        self._inc_trial(ntrial)
 
     @lock_write
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        trial = self.storage.objects.get(trial.uid)
+        ntrial = self.storage.objects.get(trial.uid)
         for k, v in kwargs.items():
             container = trial.metrics.get(k)
 
@@ -222,7 +228,9 @@ class FileProtocol(Protocol):
                 container.append((step, v))
             else:
                 container.append(v)
-        self._inc_trial(trial)
+
+        ntrial.metrics.update(trial.metrics)
+        self._inc_trial(ntrial)
 
     @lock_write
     def add_trial_tags(self, trial, **kwargs):
