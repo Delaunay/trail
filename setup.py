@@ -1,6 +1,17 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+import sys
+
+major, minor, patch, _, _ = sys.version_info
+
+requires = []
+
+if minor < 6:
+    requires.append('typing')
+
+if minor < 7:
+    requires.append('dataclasses')
 
 
 if __name__ == '__main__':
@@ -21,10 +32,7 @@ if __name__ == '__main__':
             'track.distributed',
             'track.dashboard'
         ],
-        install_requires=[
-            'dataclasses',
-            'typing'
-        ],
+        install_requires=requires,
         extras_require={
             'cockroack': ['psycopg2-binary'],
             'cometml': ['cometml'],

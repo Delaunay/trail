@@ -175,7 +175,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
-        t = self.storage.objects.get(trial.uid)
+        trial = self.storage.objects.get(trial.uid)
         if t is not None:
             t.metadata.update(kwargs)
 
