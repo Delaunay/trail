@@ -5,7 +5,11 @@ import sys
 
 major, minor, patch, _, _ = sys.version_info
 
-requires = []
+requires = [
+    'cryptography',
+    'filelock',
+    'gitpython'
+]
 
 if minor < 6:
     requires.append('typing')
