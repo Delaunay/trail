@@ -159,6 +159,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_start(self, trial):
+        trial = self.storage.objects.get(trial.uid)
         acc = ValueAggregator()
         trial.chronos['runtime'] = acc
         self.chronos['runtime'] = time.time()
@@ -168,6 +169,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
+        trial = self.storage.objects.get(trial.uid)
         start_time = self.chronos['runtime']
         acc = trial.chronos['runtime']
         acc.append(time.time() - start_time)
@@ -176,15 +178,14 @@ class FileProtocol(Protocol):
     @lock_write
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = value_aggregator, **kwargs):
         trial = self.storage.objects.get(trial.uid)
-        if t is not None:
-            t.metadata.update(kwargs)
-
+        trial.metadata.update(kwargs)
         self._inc_trial(trial)
 
     @lock_write
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
                                end_callback=None):
+        trial = self.storage.objects.get(trial.uid)
         agg = trial.chronos.get(name)
         if agg is None:
             agg = aggregator()
@@ -195,6 +196,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
+        trial = self.storage.objects.get(trial.uid)
         start_time = self.chronos[name]
         acc = trial.chronos[name]
         acc.append(time.time() - start_time)
@@ -202,6 +204,7 @@ class FileProtocol(Protocol):
 
     @lock_write
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
+        trial = self.storage.objects.get(trial.uid)
         for k, v in kwargs.items():
             container = trial.metrics.get(k)
 
@@ -219,16 +222,19 @@ class FileProtocol(Protocol):
 
     @lock_write
     def add_trial_tags(self, trial, **kwargs):
+        trial = self.storage.objects.get(trial.uid)
         trial.tags.update(kwargs)
         self._inc_trial(trial)
 
     @lock_write
     def log_trial_arguments(self, trial, **kwargs):
+        trial = self.storage.objects.get(trial.uid)
         trial.parameters.update(kwargs)
         self._inc_trial(trial)
 
     @lock_atomic_write
     def set_trial_status(self, trial, status, error=None):
+        trial = self.storage.objects.get(trial.uid)
         trial.status = status
 
         if error is not None:
