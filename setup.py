@@ -42,7 +42,13 @@ if __name__ == '__main__':
             'cockroach': ['psycopg2-binary'],
             'cometml': ['cometml'],
             'mongo': ['pymongo'],
-            'orion': ['orion.core']
+            'orion': ['orion.core'],
+            'all': [
+                'orion.core',
+                'pymongo',
+                'cometml',
+                'psycopg2-binary'
+            ]
         },
         dependency_links=[
             'git+git://github.com/Delaunay/benchutils@master#egg=benchutils',
