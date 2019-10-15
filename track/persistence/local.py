@@ -395,8 +395,8 @@ class FileProtocol(Protocol):
         return trials[0]
 
     @lock_write
-    def set_group_metadata(self, group, **kwargs):
-        group.metadata.update(kwargs)
+    def set_group_metadata(self, group, *args, **kwargs):
+        group.metadata.get('metadata').update(kwargs)
 
     @lock_write
     def fetch_and_update_group(self, query, attr, *args, **kwargs):

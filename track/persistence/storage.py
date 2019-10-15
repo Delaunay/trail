@@ -76,6 +76,7 @@ class LocalStorage:
         objects = []
         for uid in self._projects:
             objects.append(to_json(self._objects[uid]))
+            # print(json.dumps(objects[-1], indent=2))
 
         file_name = tempfile.mktemp('track_uncommitted')
 
