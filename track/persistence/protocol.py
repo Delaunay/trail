@@ -254,6 +254,29 @@ class Protocol:
         """
         raise NotImplementedError()
 
+    def fetch_and_update_group(self, query, attr, *args, **kwargs):
+        """Fetch and update a single group
+
+        Parameters
+        ----------
+        query: Dict
+            dictionary to fetch trials
+
+        attr: str
+            name of the update function to call on each selected group
+
+        *args:
+            additional positional arguments for the attr function
+
+        **kwargs:
+            addtional keyword arguments for the attr function
+
+        Returns
+        -------
+        returns the modified trial
+        """
+        raise NotImplementedError()
+
     def fetch_trials(self, query) -> List[Trial]:
         """Fetch trials according to a given query"""
         raise NotImplementedError()

@@ -384,12 +384,8 @@ class FileProtocol(Protocol):
 
     @lock_write
     def fetch_and_update_trial(self, query, attr, *args, **kwargs):
-        print(query)
         trials = self.fetch_trials(query)
         fun = getattr(self, attr)
-
-        for t in trials:
-            print('--', t.status)
 
         if not trials:
             return None
@@ -397,6 +393,22 @@ class FileProtocol(Protocol):
         fun(trials[0], *args, **kwargs)
 
         return trials[0]
+
+    @lock_write
+    def set_group_metadata(self, group, **kwargs):
+        group.metadata.update(kwargs)
+
+    @lock_write
+    def fetch_and_update_group(self, query, attr, *args, **kwargs):
+        groups = self.fetch_groups(query)
+        fun = getattr(self, attr)
+
+        if not groups:
+            return None
+
+        fun(groups[0], *args, **kwargs)
+
+        return groups[0]
 
     @lock_read
     def fetch_trials(self, query=None):
