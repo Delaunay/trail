@@ -7,7 +7,10 @@ def get_git_version(file):
     import git
 
     """ This suppose that you did a dev installation of the `module` and that a .git folder is present """
-    repo = git.Repo(path=file, search_parent_directories=True)
+    try:
+        repo = git.Repo(path=file, search_parent_directories=True)
+    except git.exc.NoSuchPathError:
+        return None
 
     commit_hash = repo.git.rev_parse(repo.head.object.hexsha, short=20)
     commit_date = repo.head.object.committed_datetime
@@ -23,7 +26,10 @@ __all__ = [
 
 
 __descr__ = 'Experience tracker'
-__version__ = f'0.0.1-{get_git_version(__file__)[0][:8]}'
+git_version = get_git_version(__file__)
+__version__ = '0.0.1'
+if git_version:
+    __version__ += '-' + git_version[0][:8]
 
 __license__ = 'BSD-3-Clause'
 __author__ = u'Pierre Delaunay'
