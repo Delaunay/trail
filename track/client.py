@@ -221,7 +221,7 @@ class TrackClient:
         except IndexError:
             raise TrialDoesNotExist(f'cannot set trial (id: {trial.uid}, hash:{hash}) it does not exist')
 
-    def _new_trial(self, force=False, arguments=None, **kwargs):
+    def _new_trial(self, force=False, parameters=None, **kwargs):
         """Create a new trial if all the required arguments are satisfied.
 
         To provide a better user experience if not all arguments are provided a delayed trials is created
@@ -244,8 +244,8 @@ class TrackClient:
         -------
         returns a trial
         """
-        if isinstance(arguments, Namespace):
-            arguments = dict(**vars(arguments))
+        if isinstance(parameters, Namespace):
+            parameters = dict(**vars(parameters))
 
         if self.trial is not None and not is_delayed_call(self.trial) and not force:
             info(f'Trial is already set, to override use force=True')
@@ -253,17 +253,17 @@ class TrackClient:
 
             # if arguments are not specified do not create the trial just yet
             # wait for the user to be able to specify the parameters so we can have a meaningful hash
-        if arguments is None:
+        if parameters is None:
             if is_delayed_call(self.trial):
-                raise RuntimeError('Trial needs arguments')
+                raise RuntimeError('Trial needs parameters')
 
             self.trial = delay_call(self._new_trial, **kwargs)
             # return the logger with the delayed trial
             return self.trial
 
-            # replace the trial or delayed trial by its actual value
-        if self.trial is None or is_delayed_call(self.trial):
-            self.trial = self._make_trial(arguments=arguments, **kwargs)
+        # replace the trial or delayed trial by its actual value
+        if parameters or is_delayed_call(self.trial):
+            self.trial = self._make_trial(parameters=parameters, **kwargs)
 
         if self.project is None:
             self.project = self.set_project(name='orphan')
@@ -295,7 +295,7 @@ class TrackClient:
         self.logger = TrialLogger(self.trial, self.protocol)
         return self.logger
 
-    def _make_trial(self, arguments, name=None, **kwargs):
+    def _make_trial(self, parameters, name=None, **kwargs):
         project_id = None
         group_id = None
         if self.project is not None:
@@ -309,7 +309,7 @@ class TrackClient:
             version=self.version(),
             project_id=project_id,
             group_id=group_id,
-            parameters=arguments,
+            parameters=parameters,
             **kwargs)
 
         trial = self.protocol.new_trial(trial)
