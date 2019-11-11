@@ -200,8 +200,9 @@ class TrackClient:
         if trial is None:
             uhash = kwargs.pop('hash', None)
             uid = kwargs.pop('uid', None)
+            version = kwargs.pop('version', self.version())
 
-            trial = Trial(**kwargs)
+            trial = Trial(version=version, **kwargs)
             if uhash is not None:
                 trial.hash = uhash
 
@@ -209,10 +210,14 @@ class TrackClient:
                 trial.uid = uid
 
         try:
+            if trial.version is None:
+                trial.version = self.version()
+
             trials = self.protocol.get_trial(trial)
 
             if trials is None:
-                raise TrialDoesNotExist(f'Trial (hash: {trial.hash}, rev: {trial.revision}) does not exist!')
+                raise TrialDoesNotExist(
+                    f'Trial (hash: {trial.hash}, v:{trial.version} rev: {trial.revision}) does not exist!')
 
             self.trial = trials[0]
             self.logger = TrialLogger(self.trial, self.protocol)
@@ -251,8 +256,8 @@ class TrackClient:
             info(f'Trial is already set, to override use force=True')
             return self.trial
 
-            # if arguments are not specified do not create the trial just yet
-            # wait for the user to be able to specify the parameters so we can have a meaningful hash
+        # if arguments are not specified do not create the trial just yet
+        # wait for the user to be able to specify the parameters so we can have a meaningful hash
         if parameters is None:
             if is_delayed_call(self.trial):
                 raise RuntimeError('Trial needs parameters')
@@ -313,6 +318,7 @@ class TrackClient:
             **kwargs)
 
         trial = self.protocol.new_trial(trial)
+        assert trial is not None
         return trial
 
     def add_tags(self, **kwargs):

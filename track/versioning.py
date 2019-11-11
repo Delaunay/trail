@@ -89,6 +89,4 @@ def compute_hash(*args, **kwargs):
 
 def default_version_hash():
     """ get the current stack frames and from the file compute the version"""
-    stack = inspect.stack()
-    files = [s.filename for s in stack]
-    return compute_version(files)
+    return 0
