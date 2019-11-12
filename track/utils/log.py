@@ -8,7 +8,8 @@ def set_log_level(level=logging.INFO):
 
 def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
     start = path.rfind('track')
-    path = path[start:]
+    if start > 0:
+        path = path[start:]
     return logging.LogRecord(name, level, path, lno, msg, args, exc_info, func, sinfo, **kwargs)
 
 
