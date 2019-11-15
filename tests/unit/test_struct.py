@@ -1,24 +1,25 @@
 from track.client import TrackClient
-import pdb
+from tests.config import Remove
 
 
-def test_trial():
+def test_trial(file='test.json'):
 
-    client = TrackClient('file:test.json')
+    with Remove(file):
+        client = TrackClient(f'file:{file}')
 
-    client.set_project(name='ConvnetTest', description='Trail test example')
-    client.set_group(name='test_group')
+        client.set_project(name='ConvnetTest', description='Trail test example')
+        client.set_group(name='test_group')
 
-    logger1 = client.new_trial()
-    client.get_arguments({'a': 1})
+        logger1 = client.new_trial()
+        client.get_arguments({'a': 1})
 
-    uid1 = logger1.trial.hash
+        uid1 = logger1.trial.hash
 
-    logger2 = client.new_trial(force=True)
-    client.get_arguments({'a': 2})
+        logger2 = client.new_trial(force=True)
+        client.get_arguments({'a': 2})
 
-    uid2 = logger2.trial.hash
-    assert uid1 != uid2, 'Trials with different parameters must have different hash'
+        uid2 = logger2.trial.hash
+        assert uid1 != uid2, 'Trials with different parameters must have different hash'
 
 
 if __name__ == '__main__':

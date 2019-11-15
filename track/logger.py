@@ -108,7 +108,7 @@ class TrialLogger:
         """log the trial arguments. This function has not effect if the trial was already created."""
         # arguments are set at trial creation
         if is_delayed_call(self.trial):
-            self.trial = self.trial(arguments=kwargs)
+            self.trial = self.trial(parameters=kwargs)
 
     def log_metrics(self, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         """insert metrics values inside a trial

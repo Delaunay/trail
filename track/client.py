@@ -318,6 +318,7 @@ class TrackClient:
             **kwargs)
 
         trial = self.protocol.new_trial(trial)
+        print(trial)
         assert trial is not None
         return trial
 
@@ -366,7 +367,7 @@ class TrackClient:
 
         # if we have a pending trial create it now as we have all the information
         if is_delayed_call(self.trial):
-            self.trial = self.trial(arguments=kwargs)
+            self.trial = self.trial(parameters=kwargs)
             self.logger = TrialLogger(self.trial, self.protocol)
         else:
             # we do not need to log the arguments they are inside the trial already

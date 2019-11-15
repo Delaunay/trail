@@ -3,9 +3,9 @@ from tests.config import Remove
 import os
 
 
-def test_client_no_group(file='client'):
+def test_client_no_group(file='client_2'):
     with Remove(file):
-        client = TrackClient(f'file://{file}.json')
+        client = TrackClient(f'file://{file}')
         client.set_project(name='test_client')
 
         log = client.new_trial()
@@ -23,7 +23,7 @@ def test_client_no_group(file='client'):
 def test_client_set_trial_throw(file='client_throw'):
     try:
         with Remove(file):
-            client = TrackClient(f'file://{file}.json')
+            client = TrackClient(f'file://{file}')
             client.set_trial(uid='does_not_exist')
     except TrialDoesNotExist:
         pass
@@ -46,7 +46,7 @@ def test_client_log_api():
 
 def test_client_capture_output(file='client_output'):
     with Remove(file):
-        client = TrackClient(f'file://{file}.json')
+        client = TrackClient(f'file://{file}')
         client.set_project(name='project_name')
 
         logger = client.new_trial()
@@ -63,7 +63,7 @@ def test_client_capture_output(file='client_output'):
 
 def test_client_orion_integration(file='client_orion_integration'):
     def scoped_init():
-        clt = TrackClient(f'file://{file}.json')
+        clt = TrackClient(f'file://{file}')
 
         clt.set_project(name='project_name')
         clt.set_group(name='group_name')
@@ -82,7 +82,7 @@ def test_client_orion_integration(file='client_orion_integration'):
             os.environ['ORION_EXPERIMENT'] = 'group_name'
             os.environ['ORION_TRIAL_ID'] = trial_id
 
-            client = TrackClient(f'file://{file}.json')
+            client = TrackClient(f'file://{file}')
 
             assert client.trial.parameters['batch_size'] == 256
 

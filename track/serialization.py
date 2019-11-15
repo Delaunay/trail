@@ -54,7 +54,6 @@ class SerializerTrial(SerializerAspect):
             for i in self.ignore_meta:
                 trial['metadata'].pop(i, None)
 
-            trial['version'] = trial['version'][0:10]
         return trial
 
 

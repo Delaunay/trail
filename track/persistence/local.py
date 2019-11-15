@@ -315,6 +315,7 @@ class FileProtocol(Protocol):
     def new_trial(self, trial: Trial, auto_increment=False):
         if trial.uid in self.storage.objects:
             if not auto_increment:
+                debug('Found already existing trial')
                 return None
 
             trials = self.get_trial(trial)
