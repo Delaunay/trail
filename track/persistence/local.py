@@ -45,10 +45,14 @@ class _NoLockLock:
         if exc_val is not None:
             raise exc_val
 
+    def acquire(self, *args, **kwargs):
+        return self
+
 
 def make_lock(name, eager):
     if eager:
         return FileLock(name, timeout=options('log.backend.lock_timeout', 5))
+
     return _NoLockLock()
 
 
@@ -71,7 +75,7 @@ def lock_guard(readonly, atomic=False):
             # if _lock_guard_depth == 0:
             #     debug('filelock start')
 
-            with self.lock:
+            with self.lock.acquire():
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
                 self.storage = load_database(self.path)
@@ -356,7 +360,7 @@ class FileProtocol(Protocol):
         group.trials.add(trial.uid)
 
     def commit(self, file_name_override=None, **kwargs):
-        with self.lock:
+        with self.lock.acquire():
             self.storage.commit(file_name_override=file_name_override, **kwargs)
 
     @lock_read

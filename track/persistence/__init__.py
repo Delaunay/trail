@@ -24,6 +24,11 @@ def make_cockroach_protocol(uri):
     return Cockroach(uri)
 
 
+def make_mongodb_protocol(uri):
+    from track.persistence.mongodb import MongoDB
+    return MongoDB(uri)
+
+
 def register(name, proto):
     _protocols[name] = proto
 
@@ -33,7 +38,8 @@ _protocols = {
     'file': make_local,
     'cometml': make_comet_ml,
     'socket': make_socket_protocol,
-    'cockroach': make_cockroach_protocol
+    'cockroach': make_cockroach_protocol,
+    'mongodb': make_mongodb_protocol
 }
 
 
@@ -53,8 +59,10 @@ def get_protocol(backend_name):
         return log(backend_name)
     else:
         debug('return multiplexed protocol')
-        return ProtocolMultiplexer(
-            # Make a file Protocol to log everything in memory as well as remotely
-            make_local('file:', strict=False, eager=False),
-            log(backend_name)
-        )
+        return log(backend_name)
+
+        # return ProtocolMultiplexer(
+        #     # Make a file Protocol to log everything in memory as well as remotely
+        #     make_local('file:', strict=False, eager=False),
+        #     log(backend_name)
+        # )
