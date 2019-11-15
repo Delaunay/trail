@@ -2,6 +2,11 @@ from urllib.parse import urlparse
 
 
 def parse_uri(uri):
+    """Parse a URI and returns a dictionary from it
+
+    ``scheme:[//authority]path[?query][#fragment]`` with ``authority = [userinfo@]host[:port]``
+
+    """
     parsed = urlparse(uri)
     netloc = parsed.netloc
 

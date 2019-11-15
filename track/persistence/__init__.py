@@ -29,6 +29,20 @@ def make_mongodb_protocol(uri):
     return MongoDB(uri)
 
 
+def make_ephemeral_protocol(uri):
+    from track.persistence.backends import EphemeralDB
+    from track.persistence.mongodb import MongoDB
+
+    return MongoDB(uri, client_factory=EphemeralDB)
+
+
+def make_pickled_protocol(uri):
+    from track.persistence.backends import PickledDB
+    from track.persistence.mongodb import MongoDB
+
+    return MongoDB(uri, client_factory=PickledDB)
+
+
 def register(name, proto):
     _protocols[name] = proto
 
@@ -39,7 +53,9 @@ _protocols = {
     'cometml': make_comet_ml,
     'socket': make_socket_protocol,
     'cockroach': make_cockroach_protocol,
-    'mongodb': make_mongodb_protocol
+    'mongodb': make_mongodb_protocol,
+    'ephemeral': make_ephemeral_protocol,
+    'pickled': make_pickled_protocol
 }
 
 

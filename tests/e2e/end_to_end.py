@@ -40,6 +40,7 @@ def end_to_end_train(backend, argv=None):
 
     parser.add_argument('--data', metavar='DIR', default='mnist', help='path to dataset')
     parser.add_argument('--backend', default=None, help='track backend')
+    parser.add_argument('--subset', default=128, help='number of samples in the dataset')
 
     # ----
     if argv is None:
@@ -58,6 +59,7 @@ def end_to_end_train(backend, argv=None):
 
     if torch.cuda.is_available() and args.batch_size == 32:
         args.batch_size = 4096
+        args.subset = args.batch_size * 4
 
     args = trial.get_arguments(args, show=True)
     device = trial.get_device()
@@ -145,7 +147,10 @@ def end_to_end_train(backend, argv=None):
         kwargs['train'] = True
         args.workers = 1
 
-    train_dataset = dataset_ctor(args.data, **kwargs)
+    train_dataset = torch.utils.data.Subset(
+        dataset_ctor(args.data, **kwargs),
+        indices=list(range(args.subset))
+    )
 
     # ----
     train_loader = torch.utils.data.DataLoader(

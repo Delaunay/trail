@@ -22,10 +22,10 @@ def make_status(status):
 
 
 class MongoDB(Protocol):
-    def __init__(self, uri):
+    def __init__(self, uri, client_factory=pymongo.MongoClient):
         self.chrono = {}
         debug('connecting to server')
-        self.client = pymongo.MongoClient(uri)
+        self.client = client_factory(uri)
 
         # Fetch Database
         self.track = self.client.track
