@@ -78,13 +78,16 @@ class LocalStorage:
             objects.append(to_json(self._objects[uid]))
             # print(json.dumps(objects[-1], indent=2))
 
-        file_name = tempfile.mktemp('track_uncommitted')
+        fd, file_name = tempfile.mkstemp(prefix='track_uncommitted_', dir=os.getcwd())
 
-        with open(file_name, 'w') as output:
+        with os.fdopen(fd, 'w') as output:
             json.dump(objects, output, indent=2)
+
+        output.close()
 
         # mv is kind of atomic so this prevent generating half generated files
         os.rename(file_name, file_name_override)
+        # shutil.move(file_name, file_name_override)
 
     def _insert_object(self, obj):
         self._objects[obj.uid] = obj

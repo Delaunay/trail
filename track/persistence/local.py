@@ -74,14 +74,13 @@ def lock_guard(readonly, atomic=False):
             with self.lock:
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
-                if self.eager and _lock_guard_depth == 0:
-                    self.storage = load_database(self.path)
+                self.storage = load_database(self.path)
 
                 _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
 
-                if self.eager and not readonly:
-                    self.commit()
+                # if self.eager and not readonly:
+                self.commit()
 
                 _lock_guard_depth -= 1
 
