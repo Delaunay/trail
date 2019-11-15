@@ -210,6 +210,7 @@ class FileProtocol(Protocol):
         ntrial = self.storage.objects.get(trial.uid)
         start_time = self.chronos[name]
         acc = trial.chronos[name]
+
         acc.append(time.time() - start_time)
 
         ntrial.chronos[name] = acc

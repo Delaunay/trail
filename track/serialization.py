@@ -4,6 +4,7 @@ import datetime
 
 from track.chrono import ChronoContext
 from track.structure import Project, Trial, TrialGroup, Status, status, CustomStatus
+from track.aggregators.aggregator import StatAggregator
 
 
 class SerializerAspect:
@@ -179,11 +180,14 @@ def from_json(obj: Dict[str, any]) -> any:
             parameters=obj['parameters'],
             metadata=to_json(obj['metadata']),
             metrics=obj['metrics'],
-            chronos=obj['chronos'],
+            chronos={k: from_json(v) for k, v in obj['chronos'].items()},
             errors=obj['errors'],
             status=status(
                 name=obj['status']['name'],
                 value=obj['status']['value'])
         )
+
+    elif dtype == 'statstream':
+        return StatAggregator.from_json(obj)
 
     return obj

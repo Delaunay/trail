@@ -71,8 +71,25 @@ class StatAggregator(Aggregator):
     def lazy(skip):
         return lambda: StatAggregator(skip)
 
+    @staticmethod
+    def from_json(data):
+        stat = StatStream.from_dict(data)
+        agg = StatAggregator(0)
+        agg.stat = stat
+        return agg
+
     def to_json(self, short=False):
-        return self.stat.to_dict()
+        return {
+            'dtype'         : 'statstream',
+            'sum'           : self.stat.sum,
+            'sum_sqr'       : self.stat.sum_sqr,
+            'first_obs'     : self.stat.first_obs,
+            'min'           : self.stat.min,
+            'max'           : self.stat.max,
+            'current_count' : self.stat.current_count,
+            'current_obs'   : self.stat.current_obs,
+            'drop_obs'      : self.stat.drop_obs,
+        }
 
     @property
     def avg(self):

@@ -24,6 +24,7 @@ SKIP_SERVER = True
 def end_to_end_train(backend, argv=None):
     parser = argparse.ArgumentParser(description='Convnet training for torchvision models')
 
+    parser.add_argument('--uid', type=int, help='job id to make different trial', default=32)
     parser.add_argument('--batch-size', '-b', type=int, help='batch size', default=32)
     parser.add_argument('--cuda', action='store_true', dest='cuda', default=True, help='enable cuda')
     parser.add_argument('--no-cuda', action='store_false', dest='cuda', help='disable cuda')
@@ -70,38 +71,21 @@ def end_to_end_train(backend, argv=None):
     except Exception:
         pass
 
-    class ConvClassifier(nn.Module):
+    class Classifier(nn.Module):
         def __init__(self, input_shape=(1, 28, 28)):
-            super(ConvClassifier, self).__init__()
+            super(Classifier, self).__init__()
 
             c, h, w = input_shape
-
-            self.convs = nn.Sequential(
-                nn.Conv2d(c, 10, kernel_size=5),
-                nn.MaxPool2d(2),
-                nn.ReLU(True),
-                nn.Conv2d(10, 20, kernel_size=5),
-                nn.Dropout2d(),
-                nn.MaxPool2d(2)
-            )
-
-            _, c, h, w = self.convs(torch.rand(1, *input_shape)).shape
-            self.conv_output_size = c * h * w
-
-            self.fc1 = nn.Linear(self.conv_output_size, self.conv_output_size // 4)
-            self.fc2 = nn.Linear(self.conv_output_size // 4, 10)
+            self.flat = c * h * w
+            self.linear = nn.Linear(self.flat, 10)
 
         def forward(self, x):
-            x = self.convs(x)
-            x = x.view(-1, self.conv_output_size)
-            x = F.relu(self.fc1(x))
-            x = F.dropout(x, training=self.training)
-            x = self.fc2(x)
-            return F.log_softmax(x, dim=1)
+            x = x.view(-1, self.flat)
+            return self.linear(x)
 
     # ----
     if args.arch == 'convnet':
-        model = ConvClassifier(input_shape=(1, 28, 28))
+        model = Classifier(input_shape=(1, 28, 28))
     else:
         model = models.__dict__[args.arch]()
 
@@ -238,9 +222,11 @@ def end_to_end_train(backend, argv=None):
     print('Finished')
     print('--------')
 
+    return 0
+
 
 if __name__ == '__main__':
     import sys
     print('Starting')
     print('--------')
-    end_to_end_train('file:', sys.argv[1:])
+    end_to_end_train('file://test.json')

@@ -36,11 +36,13 @@ def e2e_socketed(client=1, security_layer=None):
     try:
         uri = [f'socket://localhost:{port}' + security] * client
 
-        clients = [Process(target=end_to_end_train, args=(arg,)) for arg in uri]
+        clients = [Process(target=end_to_end_train, args=(arg, ['--uid', str(uid)])) for uid, arg in enumerate(uri)]
 
         [c.start() for c in clients]
 
         [c.join() for c in clients]
+
+        print(', '.join([str(c.exitcode) for c in clients] + [str(db.is_alive())]))
 
     except Exception as e:
         db.terminate()
@@ -48,6 +50,7 @@ def e2e_socketed(client=1, security_layer=None):
 
     finally:
         db.terminate()
+
     remove('socketed.json')
 
 
@@ -65,6 +68,4 @@ def test_e2e_socketed_clients():
 
 
 if __name__ == '__main__':
-    import sys
-    sys.stdout = sys.stderr
     e2e_socketed(1, security_layer='AES')

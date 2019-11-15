@@ -318,8 +318,7 @@ class TrackClient:
             **kwargs)
 
         trial = self.protocol.new_trial(trial)
-        print(trial)
-        assert trial is not None
+        assert trial is not None, 'Trial already exist!'
         return trial
 
     def add_tags(self, **kwargs):
