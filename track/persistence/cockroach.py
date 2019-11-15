@@ -386,7 +386,7 @@ class Cockroach(Protocol):
                 self.serialize(trial.tags),
                 self.serialize(trial.metadata),
                 self.serialize(trial.metrics),
-                trial.version,
+                self.encode_version(trial.version),
                 self.encode_uid(trial.project_id),
                 self.encode_uid(trial.group_id),
                 self.serialize(trial.parameters),
@@ -398,6 +398,13 @@ class Cockroach(Protocol):
             trial.revision += 1
             info(f'Trial already exist increasing revision (rev: {trial.revision})')
             return self.new_trial(trial)
+
+    @staticmethod
+    def encode_version(version):
+        if isinstance(version, int):
+            return bytes([version])
+
+        return  version
 
     @staticmethod
     def encode_uid(uid):
