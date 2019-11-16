@@ -21,11 +21,13 @@ def test_e2e_cockroach_2clients(count=2):
     try:
         uri = 'cockroach://localhost:8124'
 
-        clients = [Process(target=end_to_end_train, args=(uri,)) for _ in range(count)]
+        clients = [Process(target=end_to_end_train, args=(uri, ['--uid', str(i)])) for i in range(count)]
 
         [c.start() for c in clients]
 
         [c.join() for c in clients]
+
+        print(', '.join([str(c.exitcode) for c in clients]))
 
     except Exception as e:
         raise e

@@ -79,6 +79,15 @@ class StatAggregator(Aggregator):
         return agg
 
     def to_json(self, short=False):
+        if short:
+            return  {
+            'avg': self.avg,
+            'min': self.min,
+            'max': self.max,
+            'sd': self.sd,
+            'count': self.total
+        }
+
         return {
             'dtype'         : 'statstream',
             'sum'           : self.stat.sum,

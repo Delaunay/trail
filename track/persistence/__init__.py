@@ -75,10 +75,10 @@ def get_protocol(backend_name):
         return log(backend_name)
     else:
         debug('return multiplexed protocol')
-        return log(backend_name)
+        # return log(backend_name)
 
-        # return ProtocolMultiplexer(
-        #     # Make a file Protocol to log everything in memory as well as remotely
-        #     make_local('file:', strict=False, eager=False),
-        #     log(backend_name)
-        # )
+        return ProtocolMultiplexer(
+            # Make a file Protocol to log everything in memory as well as remotely
+            make_local('file:', strict=False, eager=False),
+            log(backend_name)
+        )

@@ -1,8 +1,5 @@
-from typing import Callable
-
-from track.structure import Project, Trial, TrialGroup
-from track.aggregators.aggregator import Aggregator
-from track.aggregators.aggregator import StatAggregator
+import traceback
+from track.utils.log import error
 
 
 class ProtocolMultiplexer:
@@ -10,69 +7,75 @@ class ProtocolMultiplexer:
     def __init__(self, *backends):
         self.protos = backends
 
-    def log_trial_start(self, trial):
-        return [p.log_trial_start(trial) for p in self.protos][-1]
+    def log_trial_start(self, *args, **kwargs):
+        return self.__execute('log_trial_start', *args, **kwargs)
 
-    def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
-        return [p.log_trial_finish(trial, exc_type, exc_val, exc_tb) for p in self.protos][-1]
+    def log_trial_finish(self, *args, **kwargs):
+        return self.__execute('log_trial_finish', *args, **kwargs)
 
-    def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
-                               start_callback=None,
-                               end_callback=None):
-        return [p.log_trial_chrono_start(trial, name, aggregator, start_callback, end_callback)
-                for p in self.protos][-1]
+    def log_trial_chrono_start(self, *args, **kwargs):
+        return self.__execute('log_trial_chrono_start', *args, **kwargs)
 
-    def log_trial_chrono_finish(self, trial, name, exc_type, exc_val, exc_tb):
-        return [p.log_trial_chrono_finish(trial, name, exc_type, exc_val, exc_tb) for p in self.protos][-1]
+    def log_trial_chrono_finish(self, *args, **kwargs):
+        return self.__execute('log_trial_chrono_finish', *args, **kwargs)
 
-    def log_trial_arguments(self, trial: Trial, **kwargs):
-        return [p.log_trial_arguments(trial, **kwargs) for p in self.protos][-1]
+    def log_trial_arguments(self, *args, **kwargs):
+        return self.__execute('log_trial_arguments', *args, **kwargs)
 
-    def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        return [p.log_trial_metadata(trial, aggregator, **kwargs) for p in self.protos][-1]
+    def log_trial_metadata(self, *args, **kwargs):
+        return self.__execute('log_trial_metadata', *args, **kwargs)
 
-    def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        return [p.log_trial_metrics(trial, step, aggregator, **kwargs) for p in self.protos][-1]
+    def log_trial_metrics(self, *args, **kwargs):
+        return self.__execute('log_trial_metrics', *args, **kwargs)
 
-    def set_trial_status(self, trial: Trial, status, error=None):
-        return [p.set_trial_status(trial, status, error) for p in self.protos][-1]
+    def set_trial_status(self, *args, **kwargs):
+        return self.__execute('set_trial_status', *args, **kwargs)
 
-    def add_trial_tags(self, trial, **kwargs):
-        return [p.add_trial_tags(trial, **kwargs) for p in self.protos][-1]
+    def add_trial_tags(self, *args, **kwargs):
+        return self.__execute('add_trial_tags', *args, **kwargs)
 
     # Object Creation
-    def get_project(self, project: Project):
-        return [p.get_project(project) for p in self.protos][-1]
+    def get_project(self, *args, **kwargs):
+        return self.__execute('get_project', *args, **kwargs)
 
-    def new_project(self, project: Project):
-        return [p.new_project(project) for p in self.protos][-1]
+    def new_project(self, *args, **kwargs):
+        return self.__execute('new_project', *args, **kwargs)
 
-    def get_trial_group(self, group: TrialGroup):
-        return [p.get_trial_group(group) for p in self.protos][-1]
+    def get_trial_group(self, *args, **kwargs):
+        return self.__execute('get_trial_group', *args, **kwargs)
 
-    def new_trial_group(self, group: TrialGroup):
-        return [p.new_trial_group(group) for p in self.protos][-1]
+    def new_trial_group(self, *args, **kwargs):
+        return self.__execute('new_trial_group', *args, **kwargs)
 
-    def add_project_trial(self, project: Project, trial: Trial):
-        return [p.add_project_trial(project, trial) for p in self.protos][-1]
+    def add_project_trial(self, *args, **kwargs):
+        return self.__execute('add_project_trial', *args, **kwargs)
 
-    def add_group_trial(self, group: TrialGroup, trial: Trial):
-        return [p.add_group_trial(group, trial) for p in self.protos][-1]
+    def add_group_trial(self, *args, **kwargs):
+        return self.__execute('add_group_trial', *args, **kwargs)
 
-    def commit(self, **kwargs):
-        return [p.commit(**kwargs) for p in self.protos][-1]
+    def commit(self, *args, **kwargs):
+        return self.__execute('commit', *args, **kwargs)
 
-    def get_trial(self, trial: Trial):
-        return [p.get_trial(trial) for p in self.protos][-1]
+    def get_trial(self, *args, **kwargs):
+        return self.__execute('get_trial', *args, **kwargs)
 
-    def new_trial(self, trial: Trial):
-        return [p.new_trial(trial) for p in self.protos][-1]
+    def new_trial(self, *args, **kwargs):
+        return self.__execute('new_trial', *args, **kwargs)
 
-    def fetch_trials(self, query):
-        return [p.fetch_trials(query) for p in self.protos][-1]
+    def fetch_trials(self, *args, **kwargs):
+        return self.__execute('fetch_trials', *args, **kwargs)
 
-    def fetch_groups(self, query):
-        return [p.fetch_groups(query) for p in self.protos][-1]
+    def fetch_groups(self, *args, **kwargs):
+        return self.__execute('fetch_groups', *args, **kwargs)
 
-    def fetch_projects(self, query):
-        return [p.fetch_projects(query) for p in self.protos][-1]
+    def fetch_projects(self, *args, **kwargs):
+        return self.__execute('fetch_projects', *args, **kwargs)
+
+    def __execute(self, fun, *args, **kwargs):
+        for p in self.protos[:-1]:
+            try:
+                getattr(p, fun)(*args, **kwargs)
+            except Exception as e:
+                error(traceback.format_exc())
+
+        return getattr(self.protos[-1], fun)(*args, **kwargs)

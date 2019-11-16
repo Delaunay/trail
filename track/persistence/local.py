@@ -42,8 +42,7 @@ class _NoLockLock:
         pass
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_val is not None:
-            raise exc_val
+        pass
 
     def acquire(self, *args, **kwargs):
         return self
@@ -78,7 +77,10 @@ def lock_guard(readonly, atomic=False):
             with self.lock.acquire():
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
-                self.storage = load_database(self.path)
+
+                # only reload database if path is not none
+                if self.path:
+                    self.storage = load_database(self.path)
 
                 _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
@@ -362,8 +364,9 @@ class FileProtocol(Protocol):
         group.trials.add(trial.uid)
 
     def commit(self, file_name_override=None, **kwargs):
-        with self.lock.acquire():
-            self.storage.commit(file_name_override=file_name_override, **kwargs)
+        if self.path:
+            with self.lock.acquire():
+                self.storage.commit(file_name_override=file_name_override, **kwargs)
 
     @lock_read
     def _fetch_objects(self, objects, query, strict=False):
