@@ -260,7 +260,7 @@ class Protocol:
         Parameters
         ----------
         query: Dict
-            dictionary to fetch trials
+            dictionary to fetch groups
 
         attr: str
             name of the update function to call on each selected group
@@ -273,7 +273,7 @@ class Protocol:
 
         Returns
         -------
-        returns the modified trial
+        returns the modified group
         """
         raise NotImplementedError()
 

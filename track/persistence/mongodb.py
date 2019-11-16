@@ -192,10 +192,32 @@ class MongoDB(Protocol):
             return self.new_trial(trial)
 
     def fetch_groups(self, query):
-        return self.groups.find(query)
+        return [from_json(g, dtype='trial_group') for g in self.groups.find(query)]
 
     def fetch_projects(self, query):
-        return self.projects.find(query)
+        return [from_json(g, dtype='project') for g in self.projects.find(query)]
 
     def fetch_trials(self, query):
-        return self.trials.find(query)
+        query = {k: to_json(v) for k, v in query.items()}
+        return [from_json(g, dtype='trial') for g in self.trials.find(query)]
+
+    def fetch_and_update_group(self, query, attr, *args, **kwargs):
+        if attr == 'set_group_metadata':
+            return from_json(
+                self.groups.find_one_and_update(
+                    query,
+                    {'$set': {'metadata': kwargs}}, return_document=pymongo.ReturnDocument.AFTER),
+                dtype='trial_group')
+
+        raise NotImplementedError()
+
+    def fetch_and_update_trial(self, query, attr, *args, **kwargs):
+        if attr == 'set_trial_status':
+            return from_json(
+                self.groups.find_one_and_update(
+                    query,
+                    {'$set': {'status': to_json(kwargs['status'])}}, return_document=pymongo.ReturnDocument.AFTER),
+                dtype='trial')
+
+        raise NotImplementedError()
+

@@ -71,6 +71,12 @@ class ProtocolMultiplexer:
     def fetch_projects(self, *args, **kwargs):
         return self.__execute('fetch_projects', *args, **kwargs)
 
+    def fetch_and_update_group(self, *args, **kwargs):
+        return self.__execute('fetch_and_update_group', *args, **kwargs)
+
+    def fetch_and_update_trial(self, *args, **kwargs):
+        return self.__execute('fetch_and_update_trial', *args, **kwargs)
+
     def __execute(self, fun, *args, **kwargs):
         for p in self.protos[:-1]:
             try:
