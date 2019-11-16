@@ -35,6 +35,8 @@ class EphemeralDB(AbstractDB):
     .. seealso:: :class:`orion.core.io.database.AbstractDB` for more on attributes.
 
     """
+    def __init__(self, uri='ephemeral:'):
+        super(EphemeralDB, self).__init__(uri)
 
     @property
     def is_connected(self):

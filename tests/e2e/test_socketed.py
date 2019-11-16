@@ -1,7 +1,7 @@
 from tests.e2e.end_to_end import end_to_end_train
 import time
 import pytest
-from tests.config import is_travis, remove
+from tests.config import is_travis, remove, multi_client_launch
 
 try:
     from pytest_cov.embed import cleanup_on_sigterm
@@ -35,14 +35,7 @@ def e2e_socketed(client=1, security_layer=None):
 
     try:
         uri = [f'socket://localhost:{port}' + security] * client
-
-        clients = [Process(target=end_to_end_train, args=(arg, ['--uid', str(uid)])) for uid, arg in enumerate(uri)]
-
-        [c.start() for c in clients]
-
-        [c.join() for c in clients]
-
-        print(', '.join([str(c.exitcode) for c in clients] + [str(db.is_alive())]))
+        multi_client_launch(uri, client)
 
     except Exception as e:
         db.terminate()
@@ -54,10 +47,12 @@ def e2e_socketed(client=1, security_layer=None):
     remove('socketed.json')
 
 
+@pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_e2e_socketed():
     e2e_socketed(1)
 
 
+@pytest.mark.skipif(is_travis(), reason='Travis is too slow')
 def test_e2e_socketed_aes():
     e2e_socketed(1, security_layer='AES')
 

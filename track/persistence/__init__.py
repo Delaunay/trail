@@ -31,16 +31,16 @@ def make_mongodb_protocol(uri):
 
 def make_ephemeral_protocol(uri):
     from track.persistence.backends import EphemeralDB
-    from track.persistence.mongodb import MongoDB
+    from track.persistence.mongodb_like import MongoDBLike
 
-    return MongoDB(uri, client_factory=EphemeralDB)
+    return MongoDBLike(uri, client_factory=EphemeralDB)
 
 
 def make_pickled_protocol(uri):
     from track.persistence.backends import PickledDB
-    from track.persistence.mongodb import MongoDB
+    from track.persistence.mongodb_like import MongoDBLike
 
-    return MongoDB(uri, client_factory=PickledDB)
+    return MongoDBLike(uri, client_factory=PickledDB)
 
 
 def register(name, proto):

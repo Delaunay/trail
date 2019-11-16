@@ -52,12 +52,12 @@ class AbstractDB:
         self.resource = uri
         args = parse_uri(uri)
 
-        self.host = args['address']
-        self.name = args['query'].pop('name', 'default')
-        self.port = args['port']
-        self.username = args['username']
-        self.password = args['password']
-        self.options = args['query']
+        self.host = args.get('address')
+        self.name = args.get('query', {}).pop('name', 'default')
+        self.port = args.get('port')
+        self.username = args.get('username')
+        self.password = args.get('password')
+        self.options = args.get('query')
 
         self._db = None
         self._conn = None

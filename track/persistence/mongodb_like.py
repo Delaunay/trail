@@ -4,7 +4,6 @@ from track.structure import Trial, TrialGroup, Project, Status, CustomStatus, _S
 from track.serialization import to_json, from_json
 from track.utils.log import info, debug
 
-import json
 import time
 
 import pymongo
@@ -21,34 +20,26 @@ def make_status(status):
     return CustomStatus(name=status['name'], value=status['value'])
 
 
-class MongoDB(Protocol):
+class MongoDBLike(Protocol):
     def __init__(self, uri, client_factory=pymongo.MongoClient):
         self.chrono = {}
         debug('connecting to server')
         self.client = client_factory(uri)
 
-        # Fetch Database
-        self.track = self.client.track
-
-        # Fetch collections
-        self.trials = self.track.trials
-        self.projects = self.track.projects
-        self.groups = self.track.groups
-
     def log_trial_start(self, trial):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'metadata.trial_start': time.time()}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'metadata.trial_start': time.time()}})
 
     def log_trial_finish(self, trial, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             return
 
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'metadata.trial_end': time.time()}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'metadata.trial_end': time.time()}})
 
     def log_trial_chrono_start(self, trial, name: str, aggregator: Callable[[], Aggregator] = StatAggregator.lazy(1),
                                start_callback=None,
@@ -76,22 +67,22 @@ class MongoDB(Protocol):
         data['end'] = time.time()
         elapsed = data['end'] - data['start']
 
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'chronos': {name: elapsed}}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'chronos': {name: elapsed}}})
 
     def log_trial_arguments(self, trial: Trial, **kwargs):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'parameters': kwargs}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'parameters': kwargs}})
 
     def log_trial_metadata(self, trial: Trial, aggregator: Callable[[], Aggregator] = None, **kwargs):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'metadata': kwargs}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'metadata': kwargs}})
 
     def log_trial_metrics(self, trial: Trial, step: any = None, aggregator: Callable[[], Aggregator] = None, **kwargs):
         if step is None:
@@ -103,54 +94,61 @@ class MongoDB(Protocol):
             else:
                 v = [v]
 
-            self.trials.update_one(
-                {'uid': trial.uid},
-                {'$set': {
-                    f'metrics.{k}': v}})
+            self.client.write('trials',
+                              query={'uid': trial.uid},
+                              data={'$set': {
+                                  f'metrics.{k}': v}})
 
     def check_result(self):
         # print(self.cursor.statusmessage)
         return True
 
     def set_trial_status(self, trial: Trial, status, error=None):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'status': to_json(status)}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'status': to_json(status)}})
         return self.check_result()
 
     def add_trial_tags(self, trial, **kwargs):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'metadata': kwargs}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'metadata': kwargs}})
 
     # Object Creation
     def get_project(self, project: Project):
-        jproject = self.projects.find_one({'uid': project.uid})
+        jproject = self.client.read('project', {'uid': project.uid})
 
-        project = from_json(jproject)
+        if not jproject:
+            return None
+
+        project = from_json(jproject[0])
         return project
 
     def new_project(self, project: Project):
         try:
-            project_id = self.projects.insert_one(
-                to_json(project)
-            ).inserted_id
+            project_id = self.client.write('projects',
+                                           to_json(project)
+                                           )
 
             return project
         except DuplicateKeyError:
             return self.get_project(project)
 
     def get_trial_group(self, group: TrialGroup):
-        jgroup = self.groups.find_one({'uid': group.uid})
-        return from_json(jgroup)
+        jgroup = self.client.read('groups', {'uid': group.uid})
+
+        if not jgroup:
+            return None
+
+        return from_json(jgroup[0])
 
     def new_trial_group(self, group: TrialGroup):
         try:
-            group_id = self.groups.insert_one(
-                to_json(group)
-            ).inserted_id
+            group_id = self.client.write('groups',
+                                         to_json(group)
+                                         )
 
             return group
 
@@ -158,32 +156,36 @@ class MongoDB(Protocol):
             return self.get_trial_group(group)
 
     def add_project_trial(self, project: Project, trial: Trial):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'project_id': project.uid}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'project_id': project.uid}})
 
     def add_group_trial(self, group: TrialGroup, trial: Trial):
-        self.trials.update_one(
-            {'uid': trial.uid},
-            {'$set': {
-                'group_id': group.uid}})
+        self.client.write('trials',
+                          query={'uid': trial.uid},
+                          data={'$set': {
+                              'group_id': group.uid}})
 
-        self.groups.update_one(
-            {'uid': group.uid},
-            {'$addToSet': {'trials': trial.uid}}
-        )
+        self.client.write('groups',
+                          query={'uid': group.uid},
+                          data={'$addToSet': trial.uid}
+                          )
 
     def commit(self, **kwargs):
         pass
 
     def get_trial(self, trial: Trial):
-        trial = self.trials.find_one({'uid': trial.uid})
-        return [from_json(trial)]
+        trial = self.client.read('trials', {'uid': trial.uid})
+
+        if not trial:
+            return None
+
+        return [from_json(trial[0])]
 
     def new_trial(self, trial: Trial, auto_increment=None):
         try:
-            trial_id = self.trials.insert_one(to_json(trial)).inserted_id
+            trial_id = self.client.write('trials', to_json(trial))
             return trial
 
         except DuplicateKeyError:
@@ -192,10 +194,10 @@ class MongoDB(Protocol):
             return self.new_trial(trial)
 
     def fetch_groups(self, query):
-        return self.groups.find(query)
+        return self.client.read('groups', query)
 
     def fetch_projects(self, query):
-        return self.projects.find(query)
+        return self.client.read('projects', query)
 
     def fetch_trials(self, query):
-        return self.trials.find(query)
+        return self.client.read('trials', query)

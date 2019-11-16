@@ -1,4 +1,6 @@
 import os
+from tests.e2e.end_to_end import end_to_end_train
+from multiprocessing import Process
 
 
 def is_travis():
@@ -28,3 +30,19 @@ class Remove:
             remove(self.file)
         else:
             raise
+
+
+def multi_client_launch(uri, count):
+    try:
+        clients = [Process(target=end_to_end_train, args=(uri, ['--uid', str(i)])) for i in range(count)]
+
+        [c.start() for c in clients]
+
+        [c.join() for c in clients]
+
+        codes = [c.exitcode for c in clients]
+        print(codes)
+        return codes
+
+    except Exception as e:
+        raise e
