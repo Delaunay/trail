@@ -147,13 +147,13 @@ class LocalStorage:
 
         new_storage = load_database(filename)
 
-        _objects = new_storage._objects
-        _projects = new_storage._projects
-        _groups = new_storage._groups
-        _trials = new_storage._trials
-        _project_names = new_storage._project_names
-        _group_names = new_storage._group_names
-        _trial_names = new_storage._trial_names
+        self._objects = new_storage._objects
+        self._projects = new_storage._projects
+        self._groups = new_storage._groups
+        self._trials = new_storage._trials
+        self._project_names = new_storage._project_names
+        self._group_names = new_storage._group_names
+        self._trial_names = new_storage._trial_names
 
     def smart_reload(self, filename=None):
         """Updates current objects with new data"""

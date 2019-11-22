@@ -6,7 +6,7 @@ def test_project():
     p = Project(
         name='1',
         description='2',
-        metadata=['0', '1'],
+        metadata=dict(a=2, b=3),
         groups=set([TrialGroup(name='TG', project_id='1')]),
         trials=set()
     )
@@ -19,7 +19,7 @@ def test_trial_group():
     p = TrialGroup(
         name='1',
         description='2',
-        metadata=['0', '1'],
+        metadata=dict(a=2, b=3),
         trials=set(),
         project_id=1
     )

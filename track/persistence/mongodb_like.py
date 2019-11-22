@@ -128,9 +128,10 @@ class MongoDBLike(Protocol):
 
     def new_project(self, project: Project):
         try:
-            project_id = self.client.write('projects',
-                                           to_json(project)
-                                           )
+            self.client.write(
+                'projects',
+                to_json(project)
+            )
 
             return project
         except DuplicateKeyError:
@@ -146,9 +147,10 @@ class MongoDBLike(Protocol):
 
     def new_trial_group(self, group: TrialGroup):
         try:
-            group_id = self.client.write('groups',
-                                         to_json(group)
-                                         )
+            self.client.write(
+                'groups',
+                to_json(group)
+            )
 
             return group
 
@@ -185,7 +187,7 @@ class MongoDBLike(Protocol):
 
     def new_trial(self, trial: Trial, auto_increment=None):
         try:
-            trial_id = self.client.write('trials', to_json(trial))
+            self.client.write('trials', to_json(trial))
             return trial
 
         except DuplicateKeyError:

@@ -4,7 +4,6 @@ from track.structure import Trial, TrialGroup, Project, Status, CustomStatus, _S
 from track.serialization import to_json, from_json
 from track.utils.log import info, debug
 
-import json
 import time
 
 import pymongo
@@ -108,16 +107,11 @@ class MongoDB(Protocol):
                 {'$set': {
                     f'metrics.{k}': v}})
 
-    def check_result(self):
-        # print(self.cursor.statusmessage)
-        return True
-
     def set_trial_status(self, trial: Trial, status, error=None):
-        self.trials.update_one(
+        return self.trials.update_one(
             {'uid': trial.uid},
             {'$set': {
                 'status': to_json(status)}})
-        return self.check_result()
 
     def add_trial_tags(self, trial, **kwargs):
         self.trials.update_one(
@@ -134,9 +128,9 @@ class MongoDB(Protocol):
 
     def new_project(self, project: Project):
         try:
-            project_id = self.projects.insert_one(
+            self.projects.insert_one(
                 to_json(project)
-            ).inserted_id
+            )
 
             return project
         except DuplicateKeyError:
@@ -148,9 +142,9 @@ class MongoDB(Protocol):
 
     def new_trial_group(self, group: TrialGroup):
         try:
-            group_id = self.groups.insert_one(
+            self.groups.insert_one(
                 to_json(group)
-            ).inserted_id
+            )
 
             return group
 
@@ -183,7 +177,7 @@ class MongoDB(Protocol):
 
     def new_trial(self, trial: Trial, auto_increment=None):
         try:
-            trial_id = self.trials.insert_one(to_json(trial)).inserted_id
+            self.trials.insert_one(to_json(trial))
             return trial
 
         except DuplicateKeyError:

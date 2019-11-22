@@ -80,24 +80,24 @@ class StatAggregator(Aggregator):
 
     def to_json(self, short=False):
         if short:
-            return  {
-            'avg': self.avg,
-            'min': self.min,
-            'max': self.max,
-            'sd': self.sd,
-            'count': self.total
-        }
+            return {
+                'avg': self.avg,
+                'min': self.min,
+                'max': self.max,
+                'sd': self.sd,
+                'count': self.total
+            }
 
         return {
-            'dtype'         : 'statstream',
-            'sum'           : self.stat.sum,
-            'sum_sqr'       : self.stat.sum_sqr,
-            'first_obs'     : self.stat.first_obs,
-            'min'           : self.stat.min,
-            'max'           : self.stat.max,
-            'current_count' : self.stat.current_count,
-            'current_obs'   : self.stat.current_obs,
-            'drop_obs'      : self.stat.drop_obs,
+            'dtype': 'statstream',
+            'sum': self.stat.sum,
+            'sum_sqr': self.stat.sum_sqr,
+            'first_obs': self.stat.first_obs,
+            'min': self.stat.min,
+            'max': self.stat.max,
+            'current_count': self.stat.current_count,
+            'current_obs': self.stat.current_obs,
+            'drop_obs': self.stat.drop_obs,
         }
 
     @property

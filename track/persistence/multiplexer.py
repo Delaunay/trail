@@ -81,7 +81,7 @@ class ProtocolMultiplexer:
         for p in self.protos[:-1]:
             try:
                 getattr(p, fun)(*args, **kwargs)
-            except Exception as e:
+            except Exception:
                 error(traceback.format_exc())
 
         return getattr(self.protos[-1], fun)(*args, **kwargs)

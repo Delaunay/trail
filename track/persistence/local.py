@@ -85,8 +85,8 @@ def lock_guard(readonly, atomic=False):
                 _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
 
-                # if self.eager and not readonly:
-                self.commit()
+                if self.eager and not readonly:
+                    self.commit()
 
                 _lock_guard_depth -= 1
 
@@ -498,8 +498,7 @@ def query_in(obj, attrs, choices):
 
 def query_ne(obj, attrs, val):
     v = _get_attribute(obj, attrs)
-    print(v, val)
-    return  v != val
+    return v != val
 
 
 def query_lte(obj, attrs, val):
@@ -516,5 +515,3 @@ _query_fun = {
     '$lte': query_lte,
     '$gt': query_gt
 }
-
-

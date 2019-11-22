@@ -27,9 +27,6 @@ def make_cockroach_protocol(uri):
 def make_mongodb_protocol(uri):
     from track.persistence.mongodb import MongoDB
 
-    #from track.persistence.backends import MongoDB
-    #from track.persistence.mongodb_like import MongoDBLike
-
     return MongoDB(uri)
 
 

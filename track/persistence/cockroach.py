@@ -404,7 +404,7 @@ class Cockroach(Protocol):
         if isinstance(version, int):
             return bytes([version])
 
-        return  version
+        return version
 
     @staticmethod
     def encode_uid(uid):
