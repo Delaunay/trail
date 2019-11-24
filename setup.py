@@ -34,7 +34,8 @@ if __name__ == '__main__':
             'track.persistence',
             'track.utils',
             'track.distributed',
-            'track.dashboard'
+            'track.dashboard',
+            'track.persistence.backends'
         ],
         # python_requires='>3.6',
         install_requires=requires,
