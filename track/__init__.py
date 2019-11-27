@@ -4,12 +4,14 @@ from track.structure import Project, TrialGroup
 
 
 def get_git_version(file):
+    """This suppose that you did a dev installation of the `module` and that a .git folder is present"""
     import git
 
-    """ This suppose that you did a dev installation of the `module` and that a .git folder is present """
     try:
         repo = git.Repo(path=file, search_parent_directories=True)
     except git.exc.NoSuchPathError:
+        return None
+    except git.InvalidGitRepositoryError:
         return None
 
     commit_hash = repo.git.rev_parse(repo.head.object.hexsha, short=20)
