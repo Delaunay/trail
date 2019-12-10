@@ -2,6 +2,7 @@ import time
 import logging
 from filelock import FileLock, logger as file_lock_logger
 from typing import Callable
+from threading import RLock
 
 from track.configuration import options
 from track.utils import ItemNotFound
@@ -49,6 +50,22 @@ class _NoLockLock:
         return self
 
 
+class MultiLock:
+    def __init__(self, obj):
+        self.obj = obj
+
+    def __enter__(self):
+        self.obj.thread_lock.acquire(timeout=2)
+        self.obj.lock.acquire()
+        self.obj.lock_guard_depth += 1
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.obj.thread_lock.release()
+        self.obj.lock.release()
+        self.obj.lock_guard_depth -= 1
+
+
 def make_lock(name, eager):
     if eager:
         return FileLock(name, timeout=options('log.backend.lock_timeout', 5))
@@ -61,40 +78,25 @@ class ConcurrentWrite(Exception):
         super(ConcurrentWrite, self).__init__(msg)
 
 
-_lock_guard_depth = 0
-
-
 def lock_guard(readonly, atomic=False):
     """Protect a function call with a lock. reload the database before the action and save it afterwards"""
 
     def lock_guard_decorator(fun):
-
         def _lock_guard(self, *args, **kwargs):
-            global _lock_guard_depth
-
-            # if _lock_guard_depth == 0:
-            #     debug('filelock start')
-
-            with self.lock.acquire():
-                # avoid reloading the file if the database is already locked
-                # in a previous call to _lock_guard
-
+            with MultiLock(self):
                 # only reload database if path is not none and the lock is not already owned
-                if self.path and self.eager and _lock_guard_depth == 0:
+                if self.path and self.eager and self.lock_guard_depth == 1:
+                    # debug(f'Reload database for `{fun.__name__}`')
                     self.storage = load_database(self.path)
 
-                _lock_guard_depth += 1
                 val = fun(self, *args, **kwargs)
 
                 if self.eager and not readonly:
+                    # debug(f'Save database for `{fun.__name__}`')
                     self.commit()
 
-                _lock_guard_depth -= 1
-
             return val
-
         return _lock_guard
-
     return lock_guard_decorator
 
 
@@ -156,8 +158,10 @@ class FileProtocol(Protocol):
         self.chronos = {}
         self.strict = strict
         self.eager = eager
-        self.lock = make_lock(f'{path}.lock', eager)
         self.signal_handler = LockFileRemover(f'{path}.lock')
+        self.lock = make_lock(f'{path}.lock', eager)
+        self.lock_guard_depth = 0
+        self.thread_lock = RLock()
 
     def _inc_trial(self, trial):
         trial.metadata['_update_count'] = trial.metadata.get('_update_count', 0) + 1
@@ -277,6 +281,8 @@ class FileProtocol(Protocol):
 
     @lock_write
     def new_trial_group(self, group: TrialGroup):
+        debug(f'create new (group: {group.name})')
+
         if group.uid in self.storage.objects:
             error(f'Cannot insert group; (uid: {group.uid}) already exists!')
             return
@@ -307,6 +313,8 @@ class FileProtocol(Protocol):
 
     @lock_write
     def new_trial(self, trial: Trial, auto_increment=False):
+        debug(f'create new (trial: {trial.uid})')
+
         if trial.uid in self.storage.objects:
             if not auto_increment:
                 debug('Found already existing trial')
