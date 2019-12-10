@@ -21,6 +21,9 @@ class Status(Enum):
     Suspended = 301      # -> was suspended by the user
     Completed = 302      # -> has finished running
 
+    def __str__(self):
+        return self.name.lower()
+
 
 _STATUS_INT = set(map(lambda x: x.value, Status.__members__.values()))
 _STATUS_STR = set(map(lambda x: x.name, Status.__members__.values()))
@@ -41,6 +44,9 @@ class CustomStatus:
 
     def __repr__(self):
         return f'CStatus<{self.name}>'
+
+    def __str__(self):
+        return self.name.lower()
 
     def __eq__(self, other):
         if isinstance(other, dict):

@@ -1,6 +1,10 @@
 import socket
 
 
+class ItemNotFound(Exception):
+    pass
+
+
 def open_socket(add, port, backend=None):
     sckt = socket.create_connection((add, port))
 

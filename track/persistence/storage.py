@@ -142,6 +142,7 @@ class LocalStorage:
 
     def reload(self, filename=None):
         """Reload storage and discard current objects"""
+        debug('reloading files')
         if filename is None:
             filename = self.target_file
 
@@ -157,6 +158,7 @@ class LocalStorage:
 
     def smart_reload(self, filename=None):
         """Updates current objects with new data"""
+        debug('smart reloading files')
         if filename is None:
             filename = self.target_file
 

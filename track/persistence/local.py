@@ -4,6 +4,7 @@ from filelock import FileLock, logger as file_lock_logger
 from typing import Callable
 
 from track.configuration import options
+from track.utils import ItemNotFound
 from track.utils.signal import SignalHandler
 from track.utils.log import error, warning, debug
 
@@ -78,8 +79,8 @@ def lock_guard(readonly, atomic=False):
                 # avoid reloading the file if the database is already locked
                 # in a previous call to _lock_guard
 
-                # only reload database if path is not none
-                if self.path:
+                # only reload database if path is not none and the lock is not already owned
+                if self.path and self.eager and _lock_guard_depth == 0:
                     self.storage = load_database(self.path)
 
                 _lock_guard_depth += 1
@@ -250,16 +251,6 @@ class FileProtocol(Protocol):
         trial.parameters.update(kwargs)
         self._inc_trial(trial)
 
-    @lock_atomic_write
-    def set_trial_status(self, trial, status, error=None):
-        trial = self.storage.objects.get(trial.uid)
-        trial.status = status
-
-        if error is not None:
-            trial.errors.append(str(error))
-
-        self._inc_trial(trial)
-
     # Object Creation
     @lock_read
     def get_project(self, project: Project):
@@ -367,6 +358,8 @@ class FileProtocol(Protocol):
         if self.path:
             with self.lock.acquire():
                 self.storage.commit(file_name_override=file_name_override, **kwargs)
+        else:
+            warning('Path undefined!')
 
     @lock_read
     def _fetch_objects(self, objects, query, strict=False):
@@ -393,6 +386,10 @@ class FileProtocol(Protocol):
     @lock_write
     def fetch_and_update_trial(self, query, attr, *args, **kwargs):
         trials = self.fetch_trials(query)
+
+        if len(trials) <= 0:
+            raise ItemNotFound(f'Expected one or more trial got {len(trials)} trials with query `{query}`')
+
         fun = getattr(self, attr)
 
         if not trials:
@@ -402,6 +399,16 @@ class FileProtocol(Protocol):
 
         return trials[0]
 
+    @lock_atomic_write
+    def set_trial_status(self, trial, status, error=None):
+        trial = self.storage.objects.get(trial.uid)
+        trial.status = status
+
+        if error is not None:
+            trial.errors.append(str(error))
+
+        self._inc_trial(trial)
+
     @lock_write
     def set_group_metadata(self, group, *args, **kwargs):
         group.metadata.update(kwargs)
@@ -409,13 +416,16 @@ class FileProtocol(Protocol):
     @lock_write
     def fetch_and_update_group(self, query, attr, *args, **kwargs):
         groups = self.fetch_groups(query)
+
+        if len(groups) <= 0:
+            raise ItemNotFound(f'Expected one or more group got {len(groups)} groups with query `{query}`')
+
         fun = getattr(self, attr)
 
         if not groups:
             return None
 
         fun(groups[0], *args, **kwargs)
-
         return groups[0]
 
     @lock_read
@@ -493,7 +503,10 @@ def execute_query(obj, query):
 
 
 def query_in(obj, attrs, choices):
-    return _get_attribute(obj, attrs) in choices
+    cnv = lambda x: x
+    if isinstance(choices[0], str):
+        cnv = str
+    return cnv(_get_attribute(obj, attrs)) in choices
 
 
 def query_ne(obj, attrs, val):
