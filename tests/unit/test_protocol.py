@@ -49,7 +49,7 @@ def remove(filename):
 
 def make_storage(backend, delete=True):
     if delete:
-        remove('test.txt')
+        remove('test.json')
 
     proto = get_protocol(backend)
 
@@ -62,32 +62,32 @@ def make_storage(backend, delete=True):
     return proto
 
 
-def test_inserted_trial(backend='file://test.txt'):
+def test_inserted_trial(backend='file://test.json'):
     proto = make_storage(backend)
     assert len(proto.fetch_trials({})) == TRIAL_COUNT
     print('Trial', proto.fetch_trials({})[0])
 
 
-def test_inserted_group(backend='file://test.txt'):
+def test_inserted_group(backend='file://test.json'):
     proto = make_storage(backend)
     assert len(proto.fetch_groups({})) == 1
     print('Group', proto.fetch_groups({})[0])
 
 
-def test_inserted_project(backend='file://test.txt'):
+def test_inserted_project(backend='file://test.json'):
     proto = make_storage(backend)
     assert len(proto.fetch_projects({})) == 1
     print('Project', proto.fetch_projects({})[0])
 
 
-def test_fetch_trials(backend='file://test.txt'):
+def test_fetch_trials(backend='file://test.json'):
     proto = make_storage(backend)
     query = dict(group_id=group.uid)
     trials = proto.fetch_trials(query)
     assert len(trials) == TRIAL_COUNT
 
 
-def test_fetch_and_update_trial(backend='file://test.txt'):
+def test_fetch_and_update_trial(backend='file://test.json'):
     proto = make_storage(backend)
     query = dict(group_id=group.uid)
     t = proto.fetch_and_update_trial(
@@ -100,7 +100,7 @@ def test_fetch_and_update_trial(backend='file://test.txt'):
     assert t.status == reserved
 
 
-def test_update_trial_by_status(backend='file://test.txt'):
+def test_update_trial_by_status(backend='file://test.json'):
     proto = make_storage(backend)
 
     query = dict(
@@ -117,7 +117,7 @@ def test_update_trial_by_status(backend='file://test.txt'):
     assert t.status == reserved
 
 
-def test_update_trial_by_status_and_group(backend='file://test.txt', delete=True, queue=None):
+def test_update_trial_by_status_and_group(backend='file://test.json', delete=True, queue=None):
     from track.utils import ItemNotFound
     proto = make_storage(backend, delete=delete)
 
@@ -145,7 +145,7 @@ def test_update_trial_by_status_and_group(backend='file://test.txt', delete=True
     return t
 
 
-def test_update_group(backend='file://test.txt'):
+def test_update_group(backend='file://test.json'):
     proto = make_storage(backend)
 
     result_group = proto.fetch_groups({
@@ -155,7 +155,7 @@ def test_update_group(backend='file://test.txt'):
     assert len(result_group) == 1
 
 
-def test_fetch_and_update_group(backend='file://test.txt'):
+def test_fetch_and_update_group(backend='file://test.json'):
     proto = make_storage(backend)
 
     result_group = proto.fetch_and_update_group({
@@ -222,7 +222,7 @@ def get_reservable_trials(backend):
     return proto, set(reservable)
 
 
-def test_parallel_fetch_update(backend='file://test.txt', workers=12):
+def test_parallel_fetch_update(backend='file://test.json', workers=12):
     from multiprocessing import Queue
 
     proto, reservable = get_reservable_trials(backend)
