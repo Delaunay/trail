@@ -351,6 +351,8 @@ class FileProtocol(Protocol):
 
     @lock_write
     def add_project_trial(self, project, trial):
+        assert project is not None, 'Project cant be None'
+
         trial.project_id = project.uid
         project.trials.add(trial)
 

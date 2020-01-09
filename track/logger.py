@@ -89,6 +89,7 @@ class TrialLogger:
 
     def __init__(self, trial: Trial, protocol: Protocol):
         self.protocol = protocol
+        assert trial is not None
         self.trial = trial
 
         acc = ValueAggregator()

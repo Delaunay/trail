@@ -270,8 +270,12 @@ class TrackClient:
         if parameters or is_delayed_call(self.trial):
             self.trial = self._make_trial(parameters=parameters, **kwargs)
 
+        assert self.trial is not None, f'Trial cant be None because {parameters} or {is_delayed_call(self.trial)}'
+
         if self.project is None:
             self.project = self.set_project(name='orphan')
+
+        assert self.project is not None, 'Project cant be None'
 
         self.protocol.add_project_trial(self.project, self.trial)
 

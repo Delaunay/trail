@@ -6,17 +6,22 @@ def set_log_level(level=logging.INFO):
     trail_logger.setLevel(level)
 
 
-def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
-    start = path.rfind('/track/')
-    if start > 0:
-        path = path[start:]
-    return logging.LogRecord(name, level, path, lno, msg, args, exc_info, func, sinfo, **kwargs)
+def get_log_record_constructor():
+    old_factory = logging.getLogRecordFactory()
+
+    def log_record(name, level, path, lno, msg, args, exc_info, func=None, sinfo=None, **kwargs):
+        start = path.rfind('/track/')
+        if start > -1:
+            path = path[start + 1:]
+        return old_factory(name, level, path, lno, msg, args, exc_info, func, sinfo, **kwargs)
+
+    return log_record
 
 
 def make_logger(name):
     logger = logging.getLogger(name)
     logger.propagate = False
-    logging.setLogRecordFactory(log_record)
+    logging.setLogRecordFactory(get_log_record_constructor())
 
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
