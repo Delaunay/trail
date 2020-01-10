@@ -55,7 +55,7 @@ class MultiLock:
         self.obj = obj
 
     def __enter__(self):
-        self.obj.thread_lock.acquire(timeout=2)
+        self.obj.thread_lock.acquire(timeout=30)
         self.obj.lock.acquire()
         self.obj.lock_guard_depth += 1
         return self
@@ -68,7 +68,7 @@ class MultiLock:
 
 def make_lock(name, eager):
     if eager:
-        return FileLock(name, timeout=options('log.backend.lock_timeout', 5))
+        return FileLock(name, timeout=options('log.backend.lock_timeout', 30))
 
     return _NoLockLock()
 
